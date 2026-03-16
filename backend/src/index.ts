@@ -18,6 +18,7 @@ import mobileAuthRoutes from './routes/mobile/auth';
 import sharedPostRoutes from './routes/shared/posts';
 import sharedUserRoutes from './routes/shared/users';
 import nutritionRoutes from './routes/shared/nutrition';
+import aiRoutes from './routes/shared/ai';
 
 // Load environment variables
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/mobile/auth', mobileAuthRoutes);
 app.use('/api/posts', sharedPostRoutes);
 app.use('/api/users', sharedUserRoutes);
 app.use('/api/nutrition', nutritionRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
