@@ -12,17 +12,21 @@ interface GeminiResponse {
       parts?: Array<{ text?: string }>;
     };
   }>;
+  error?: {
+    message?: string;
+    code?: number;
+  };
 }
 
 async function callGeminiAPI(prompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    return '';
+    throw new Error('GEMINI_API_KEY not configured');
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,11 +41,19 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   );
 
   if (!response.ok) {
-    throw new Error('Gemini API request failed');
+    const errorData = await response.json() as GeminiResponse;
+    const errorMessage = errorData.error?.message || 'Gemini API request failed';
+    throw new Error(errorMessage);
   }
 
   const data = await response.json() as GeminiResponse;
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error('No response from Gemini API');
+  }
+
+  return text;
 }
 
 /**
@@ -102,19 +114,13 @@ Provide a brief analysis (2-3 sentences) covering:
 Keep it concise and friendly.`;
 
       const analysis = await callGeminiAPI(prompt);
-
-      if (!analysis) {
-        res.json({
-          analysis: generateMockAnalysis(mealName, nutrition),
-          source: 'mock'
-        });
-        return;
-      }
-
       res.json({ analysis, source: 'gemini' });
-    } catch (error) {
-      console.error('AI analyze error:', error);
-      res.status(500).json({ message: 'AI analysis failed' });
+    } catch (error: any) {
+      console.error('AI analyze error:', error.message);
+      res.status(503).json({
+        message: 'AI service unavailable',
+        error: error.message
+      });
     }
   }) as RequestHandler
 );
@@ -174,27 +180,19 @@ Return only the JSON array.`;
 
       const response = await callGeminiAPI(prompt);
 
-      if (!response) {
-        res.json({
-          suggestions: generateMockSuggestions(preferences),
-          source: 'mock'
-        });
-        return;
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from AI');
       }
 
-      try {
-        const jsonMatch = response.match(/\[[\s\S]*\]/);
-        const suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-        res.json({ suggestions, source: 'gemini' });
-      } catch {
-        res.json({
-          suggestions: generateMockSuggestions(preferences),
-          source: 'mock'
-        });
-      }
-    } catch (error) {
-      console.error('AI suggest error:', error);
-      res.status(500).json({ message: 'AI suggestion failed' });
+      const suggestions = JSON.parse(jsonMatch[0]);
+      res.json({ suggestions, source: 'gemini' });
+    } catch (error: any) {
+      console.error('AI suggest error:', error.message);
+      res.status(503).json({
+        message: 'AI service unavailable',
+        error: error.message
+      });
     }
   }) as RequestHandler
 );
@@ -248,66 +246,21 @@ Return only the JSON array.`;
 
       const response = await callGeminiAPI(prompt);
 
-      if (!response) {
-        res.json({
-          tips: generateMockTips(mealName, nutrition),
-          source: 'mock'
-        });
-        return;
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('Invalid response format from AI');
       }
 
-      try {
-        const jsonMatch = response.match(/\[[\s\S]*\]/);
-        const tips = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-        res.json({ tips, source: 'gemini' });
-      } catch {
-        res.json({
-          tips: generateMockTips(mealName, nutrition),
-          source: 'mock'
-        });
-      }
-    } catch (error) {
-      console.error('AI tips error:', error);
-      res.status(500).json({ message: 'AI tips failed' });
+      const tips = JSON.parse(jsonMatch[0]);
+      res.json({ tips, source: 'gemini' });
+    } catch (error: any) {
+      console.error('AI tips error:', error.message);
+      res.status(503).json({
+        message: 'AI service unavailable',
+        error: error.message
+      });
     }
   }) as RequestHandler
 );
-
-function generateMockAnalysis(mealName: string, nutrition?: any): string {
-  const analyses = [
-    `${mealName} is a balanced meal choice. ${nutrition?.protein > 20 ? 'Great protein content for muscle maintenance.' : 'Consider adding more protein.'} Stay hydrated while enjoying!`,
-    `This ${mealName} provides essential nutrients. ${nutrition?.calories < 500 ? 'A lighter option perfect for a balanced diet.' : 'A satisfying meal to keep you energized.'} Enjoy as part of a varied diet.`,
-    `${mealName} offers a good nutritional profile. ${nutrition?.carbs > 30 ? 'Good energy source for active days.' : 'Lower carb option for those watching intake.'} Pair with vegetables for added benefits.`
-  ];
-  return analyses[Math.floor(Math.random() * analyses.length)];
-}
-
-function generateMockSuggestions(preferences?: string): Array<{ name: string; description: string; estimatedCalories: number }> {
-  const suggestions = [
-    { name: 'Mediterranean Quinoa Bowl', description: 'Quinoa with chickpeas, cucumber, tomatoes, and feta', estimatedCalories: 420 },
-    { name: 'Grilled Salmon with Vegetables', description: 'Omega-rich salmon with seasonal roasted vegetables', estimatedCalories: 380 },
-    { name: 'Asian Chicken Stir-Fry', description: 'Lean chicken with colorful vegetables in light sauce', estimatedCalories: 350 },
-    { name: 'Greek Yogurt Parfait', description: 'Protein-rich yogurt with fresh berries and granola', estimatedCalories: 280 },
-    { name: 'Turkey Avocado Wrap', description: 'Whole grain wrap with lean turkey and fresh avocado', estimatedCalories: 400 }
-  ];
-  return suggestions.slice(0, 3);
-}
-
-function generateMockTips(mealName: string, nutrition?: any): string[] {
-  const tips = [
-    'Eat slowly to improve digestion and satisfaction',
-    'Pair with a glass of water for better nutrient absorption',
-    'Add leafy greens for extra vitamins and fiber'
-  ];
-
-  if (nutrition?.protein > 25) {
-    tips.push('Great post-workout meal for muscle recovery');
-  }
-  if (nutrition?.calories > 600) {
-    tips.push('Consider this as your main meal of the day');
-  }
-
-  return tips.slice(0, 3);
-}
 
 export default router;
