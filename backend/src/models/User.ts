@@ -27,6 +27,13 @@ import bcrypt from 'bcryptjs';
  *         firebaseUid:
  *           type: string
  *           description: Firebase UID (for mobile auth)
+ *         googleId:
+ *           type: string
+ *           description: Google OAuth ID
+ *         authProvider:
+ *           type: string
+ *           enum: [local, google, firebase]
+ *           description: Authentication provider used
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -42,6 +49,8 @@ export interface IUser extends Document {
   password?: string; // For web auth (hashed)
   refreshTokens: string[]; // For web JWT refresh
   firebaseUid?: string; // For mobile auth
+  googleId?: string; // For Google OAuth
+  authProvider: 'local' | 'google' | 'firebase'; // Track auth method
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -81,6 +90,16 @@ const userSchema = new Schema<IUser>(
       type: String,
       sparse: true, // Allow null but unique when set
       index: true
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      index: true
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google', 'firebase'],
+      default: 'local'
     }
   },
   {

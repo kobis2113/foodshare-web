@@ -1,7 +1,7 @@
-import { Router, Response } from 'express';
+import { Router, Response, RequestHandler } from 'express';
 import { User } from '../../models/User';
 import { firebaseAuth } from '../../middleware/firebaseAuth';
-import { AuthRequest } from '../../middleware/jwtAuth';
+import { AuthRequest, AuthRequestHandler } from '../../middleware/jwtAuth';
 
 const router = Router();
 
@@ -22,13 +22,14 @@ const router = Router();
  *       401:
  *         description: Invalid Firebase token
  */
-router.post('/sync', firebaseAuth, async (req: AuthRequest, res: Response) => {
+router.post('/sync', firebaseAuth as RequestHandler, (async (req: AuthRequest, res: Response) => {
   try {
     // User is already created/updated by firebaseAuth middleware
     const user = req.user;
 
     if (!user) {
-      return res.status(401).json({ message: 'Authentication failed' });
+      res.status(401).json({ message: 'Authentication failed' });
+      return;
     }
 
     res.json({
@@ -44,7 +45,7 @@ router.post('/sync', firebaseAuth, async (req: AuthRequest, res: Response) => {
     console.error('Sync error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -58,12 +59,13 @@ router.post('/sync', firebaseAuth, async (req: AuthRequest, res: Response) => {
  *       200:
  *         description: Current user data
  */
-router.get('/me', firebaseAuth, async (req: AuthRequest, res: Response) => {
+router.get('/me', firebaseAuth as RequestHandler, (async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
 
     res.json({
@@ -76,6 +78,6 @@ router.get('/me', firebaseAuth, async (req: AuthRequest, res: Response) => {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 export default router;
