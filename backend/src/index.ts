@@ -1,8 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import passport from 'passport';
@@ -19,8 +21,6 @@ import sharedPostRoutes from './routes/shared/posts';
 import sharedUserRoutes from './routes/shared/users';
 import nutritionRoutes from './routes/shared/nutrition';
 import aiRoutes from './routes/shared/ai';
-
-dotenv.config();
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
