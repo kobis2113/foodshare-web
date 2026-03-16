@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { User, IUser } from '../models/User';
 
 export interface JwtPayload {
@@ -12,6 +12,13 @@ export interface AuthRequest extends Request {
   userId?: string;
   authType?: 'jwt' | 'firebase';
 }
+
+// Type helper for async handlers with AuthRequest
+export type AuthRequestHandler = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => Promise<void> | void;
 
 /**
  * JWT Authentication Middleware for Web App
@@ -68,16 +75,19 @@ export const jwtAuth = async (
  * Generate JWT tokens
  */
 export const generateTokens = (userId: string, email: string) => {
+  const accessExpiresIn = process.env.JWT_EXPIRES_IN || '15m';
+  const refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+
   const accessToken = jwt.sign(
     { userId, email },
     process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    { expiresIn: accessExpiresIn } as SignOptions
   );
 
   const refreshToken = jwt.sign(
     { userId, email },
     process.env.JWT_REFRESH_SECRET!,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    { expiresIn: refreshExpiresIn } as SignOptions
   );
 
   return { accessToken, refreshToken };

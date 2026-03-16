@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, RequestHandler } from 'express';
 import { body, validationResult } from 'express-validator';
 import { User } from '../../models/User';
 import { Post } from '../../models/Post';
@@ -7,6 +7,7 @@ import { AuthRequest } from '../../middleware/jwtAuth';
 import { uploadImage } from '../../middleware/upload';
 
 const router = Router();
+const authMiddleware = combinedAuth as RequestHandler;
 
 /**
  * @swagger
@@ -21,15 +22,15 @@ const router = Router();
  *       200:
  *         description: User profile
  */
-router.get('/me', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.get('/me', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.userId);
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
 
-    // Get user stats
     const postsCount = await Post.countDocuments({ author: req.userId });
     const likesReceived = await Post.aggregate([
       { $match: { author: user._id } },
@@ -51,7 +52,7 @@ router.get('/me', combinedAuth, async (req: AuthRequest, res: Response) => {
     console.error('Get profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -79,20 +80,22 @@ router.get('/me', combinedAuth, async (req: AuthRequest, res: Response) => {
  */
 router.put(
   '/me',
-  combinedAuth,
+  authMiddleware,
   uploadImage.single('profileImage'),
   [body('displayName').optional().trim().isLength({ min: 2, max: 50 })],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400).json({ errors: errors.array() });
+        return;
       }
 
       const user = await User.findById(req.userId);
 
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        res.status(404).json({ message: 'User not found' });
+        return;
       }
 
       const { displayName } = req.body;
@@ -115,7 +118,7 @@ router.put(
       console.error('Update profile error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -131,7 +134,7 @@ router.put(
  *       200:
  *         description: User's posts
  */
-router.get('/me/posts', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.get('/me/posts', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const posts = await Post.find({ author: req.userId })
       .sort({ createdAt: -1 })
@@ -143,7 +146,7 @@ router.get('/me/posts', combinedAuth, async (req: AuthRequest, res: Response) =>
     console.error('Get user posts error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -158,7 +161,7 @@ router.get('/me/posts', combinedAuth, async (req: AuthRequest, res: Response) =>
  *       200:
  *         description: Liked posts
  */
-router.get('/me/liked', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.get('/me/liked', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const posts = await Post.find({ likes: req.userId })
       .sort({ createdAt: -1 })
@@ -170,7 +173,7 @@ router.get('/me/liked', combinedAuth, async (req: AuthRequest, res: Response) =>
     console.error('Get liked posts error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -190,12 +193,13 @@ router.get('/me/liked', combinedAuth, async (req: AuthRequest, res: Response) =>
  *       404:
  *         description: User not found
  */
-router.get('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.get('/:id', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const user = await User.findById(req.params.id);
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
 
     const postsCount = await Post.countDocuments({ author: req.params.id });
@@ -212,6 +216,6 @@ router.get('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
     console.error('Get user error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 export default router;
