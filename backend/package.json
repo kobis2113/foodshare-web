@@ -54,6 +54,7 @@
     "ts-jest": "^29.1.1",
     "supertest": "^6.3.3",
     "@types/supertest": "^2.0.16",
+    "mongodb-memory-server": "^9.1.6",
     "eslint": "^8.55.0",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1"
