@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, RequestHandler } from 'express';
 import { query, validationResult } from 'express-validator';
 import { combinedAuth } from '../../middleware/firebaseAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
@@ -44,13 +44,14 @@ const router = Router();
  */
 router.get(
   '/',
-  combinedAuth,
+  combinedAuth as RequestHandler,
   [query('query').trim().isLength({ min: 1, max: 200 })],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400).json({ errors: errors.array() });
+        return;
       }
 
       const foodQuery = req.query.query as string;
@@ -63,7 +64,7 @@ router.get(
       console.error('Nutrition API error:', error);
       res.status(500).json({ message: 'Failed to fetch nutrition data' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -90,7 +91,14 @@ async function fetchNutritionData(query: string) {
       throw new Error('Nutrition API request failed');
     }
 
-    const data = await response.json();
+    const data = await response.json() as { items?: Array<{
+      calories?: number;
+      protein_g?: number;
+      carbohydrates_total_g?: number;
+      fat_total_g?: number;
+      fiber_g?: number;
+      sugar_g?: number;
+    }> };
 
     // Aggregate nutrition from all items
     const nutrition = {
@@ -103,7 +111,7 @@ async function fetchNutritionData(query: string) {
     };
 
     if (data.items && data.items.length > 0) {
-      data.items.forEach((item: any) => {
+      data.items.forEach((item) => {
         nutrition.calories += item.calories || 0;
         nutrition.protein += item.protein_g || 0;
         nutrition.carbs += item.carbohydrates_total_g || 0;
