@@ -1,0 +1,448 @@
+import { Router, Response } from 'express';
+import { body, query, validationResult } from 'express-validator';
+import { Post } from '../../models/Post';
+import { Comment } from '../../models/Comment';
+import { combinedAuth } from '../../middleware/firebaseAuth';
+import { AuthRequest } from '../../middleware/jwtAuth';
+import { uploadImage } from '../../middleware/upload';
+
+const router = Router();
+
+/**
+ * @swagger
+ * /api/posts:
+ *   get:
+ *     summary: Get all posts (paginated, infinite scroll)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: List of posts
+ */
+router.get(
+  '/',
+  combinedAuth,
+  [
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 50 })
+  ],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const skip = (page - 1) * limit;
+
+      const posts = await Post.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('author', 'displayName profileImage')
+        .lean();
+
+      // Add isLiked field for current user
+      const postsWithLikeStatus = posts.map(post => ({
+        ...post,
+        isLiked: post.likes.some(
+          (likeId: any) => likeId.toString() === req.userId
+        )
+      }));
+
+      const total = await Post.countDocuments();
+
+      res.json({
+        posts: postsWithLikeStatus,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+          hasMore: page * limit < total
+        }
+      });
+    } catch (error) {
+      console.error('Get posts error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/posts/{id}:
+ *   get:
+ *     summary: Get post by ID
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Post details
+ *       404:
+ *         description: Post not found
+ */
+router.get('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate('author', 'displayName profileImage')
+      .lean();
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    res.json({
+      ...post,
+      isLiked: post.likes.some(
+        (likeId: any) => likeId.toString() === req.userId
+      )
+    });
+  } catch (error) {
+    console.error('Get post error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/posts:
+ *   post:
+ *     summary: Create a new post
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - mealName
+ *               - image
+ *             properties:
+ *               mealName:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Post created
+ */
+router.post(
+  '/',
+  combinedAuth,
+  uploadImage.single('image'),
+  [
+    body('mealName').trim().isLength({ min: 1, max: 100 }),
+    body('description').optional().trim().isLength({ max: 500 })
+  ],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: 'Image is required' });
+      }
+
+      const { mealName, description, nutrition } = req.body;
+
+      const post = await Post.create({
+        author: req.userId,
+        mealName,
+        description,
+        image: `/uploads/${req.file.filename}`,
+        nutrition: nutrition ? JSON.parse(nutrition) : undefined
+      });
+
+      await post.populate('author', 'displayName profileImage');
+
+      res.status(201).json({
+        message: 'Post created successfully',
+        post
+      });
+    } catch (error) {
+      console.error('Create post error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/posts/{id}:
+ *   put:
+ *     summary: Update a post (owner only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Post updated
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Post not found
+ */
+router.put(
+  '/:id',
+  combinedAuth,
+  uploadImage.single('image'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const post = await Post.findById(req.params.id);
+
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+
+      if (post.author.toString() !== req.userId) {
+        return res.status(403).json({ message: 'Not authorized' });
+      }
+
+      const { mealName, description, nutrition } = req.body;
+
+      if (mealName) post.mealName = mealName;
+      if (description !== undefined) post.description = description;
+      if (req.file) post.image = `/uploads/${req.file.filename}`;
+      if (nutrition) post.nutrition = JSON.parse(nutrition);
+
+      await post.save();
+      await post.populate('author', 'displayName profileImage');
+
+      res.json({
+        message: 'Post updated successfully',
+        post
+      });
+    } catch (error) {
+      console.error('Update post error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/posts/{id}:
+ *   delete:
+ *     summary: Delete a post (owner only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Post deleted
+ */
+router.delete('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.author.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Delete associated comments
+    await Comment.deleteMany({ post: post._id });
+
+    await post.deleteOne();
+
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Delete post error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/posts/{id}/like:
+ *   post:
+ *     summary: Like/unlike a post
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Like toggled
+ */
+router.post('/:id/like', combinedAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const userIdStr = req.userId!;
+    const isLiked = post.likes.some(id => id.toString() === userIdStr);
+
+    if (isLiked) {
+      post.likes = post.likes.filter(id => id.toString() !== userIdStr);
+      post.likesCount = Math.max(0, post.likesCount - 1);
+    } else {
+      post.likes.push(req.userId as any);
+      post.likesCount += 1;
+    }
+
+    await post.save();
+
+    res.json({
+      isLiked: !isLiked,
+      likesCount: post.likesCount
+    });
+  } catch (error) {
+    console.error('Like post error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/posts/{id}/comments:
+ *   get:
+ *     summary: Get comments for a post
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of comments
+ */
+router.get('/:id/comments', combinedAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const comments = await Comment.find({ post: req.params.id })
+      .sort({ createdAt: -1 })
+      .populate('author', 'displayName profileImage')
+      .lean();
+
+    res.json({ comments });
+  } catch (error) {
+    console.error('Get comments error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/posts/{id}/comments:
+ *   post:
+ *     summary: Add a comment to a post
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - text
+ *             properties:
+ *               text:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Comment added
+ */
+router.post(
+  '/:id/comments',
+  combinedAuth,
+  [body('text').trim().isLength({ min: 1, max: 500 })],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const post = await Post.findById(req.params.id);
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+
+      const comment = await Comment.create({
+        post: req.params.id,
+        author: req.userId,
+        text: req.body.text
+      });
+
+      post.commentsCount += 1;
+      await post.save();
+
+      await comment.populate('author', 'displayName profileImage');
+
+      res.status(201).json({
+        message: 'Comment added successfully',
+        comment
+      });
+    } catch (error) {
+      console.error('Add comment error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
+export default router;
