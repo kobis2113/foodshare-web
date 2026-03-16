@@ -5,8 +5,12 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
+import passport from 'passport';
 import swaggerSpec from './config/swagger';
 import { connectDB } from './config/database';
+
+// Initialize passport strategies
+import './config/passport';
 
 // Route imports
 import webAuthRoutes from './routes/web/auth';
@@ -27,6 +31,7 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
 
 // Static files for uploaded images
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

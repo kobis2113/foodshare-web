@@ -1,9 +1,13 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request, RequestHandler } from 'express';
 import { body, validationResult } from 'express-validator';
+import passport from 'passport';
 import { User } from '../../models/User';
 import { AuthRequest, generateTokens, verifyRefreshToken, jwtAuth } from '../../middleware/jwtAuth';
 
+import '../../config/passport';
+
 const router = Router();
+const jwtMiddleware = jwtAuth as RequestHandler;
 
 /**
  * @swagger
@@ -43,35 +47,33 @@ router.post(
     body('password').isLength({ min: 6 }),
     body('displayName').trim().isLength({ min: 2, max: 50 })
   ],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400).json({ errors: errors.array() });
+        return;
       }
 
       const { email, password, displayName } = req.body;
 
-      // Check if user exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' });
+        res.status(400).json({ message: 'User already exists' });
+        return;
       }
 
-      // Create user
       const user = await User.create({
         email,
         password,
         displayName
       });
 
-      // Generate tokens
       const { accessToken, refreshToken } = generateTokens(
         user._id.toString(),
         user.email
       );
 
-      // Save refresh token
       user.refreshTokens = [refreshToken];
       await user.save();
 
@@ -90,7 +92,7 @@ router.post(
       console.error('Register error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -125,35 +127,34 @@ router.post(
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty()
   ],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400).json({ errors: errors.array() });
+        return;
       }
 
       const { email, password } = req.body;
 
-      // Find user with password
       const user = await User.findOne({ email }).select('+password +refreshTokens');
 
       if (!user || !user.password) {
-        return res.status(401).json({ message: 'Invalid credentials' });
+        res.status(401).json({ message: 'Invalid credentials' });
+        return;
       }
 
-      // Check password
       const isMatch = await user.comparePassword(password);
       if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
+        res.status(401).json({ message: 'Invalid credentials' });
+        return;
       }
 
-      // Generate tokens
       const { accessToken, refreshToken } = generateTokens(
         user._id.toString(),
         user.email
       );
 
-      // Save refresh token
       user.refreshTokens.push(refreshToken);
       await user.save();
 
@@ -172,7 +173,7 @@ router.post(
       console.error('Login error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -198,28 +199,26 @@ router.post(
  *       401:
  *         description: Invalid refresh token
  */
-router.post('/refresh', async (req: AuthRequest, res: Response) => {
+router.post('/refresh', (async (req: AuthRequest, res: Response) => {
   try {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      return res.status(401).json({ message: 'Refresh token required' });
+      res.status(401).json({ message: 'Refresh token required' });
+      return;
     }
 
-    // Verify refresh token
     const decoded = verifyRefreshToken(refreshToken);
 
-    // Find user and check if token exists
     const user = await User.findById(decoded.userId).select('+refreshTokens');
 
     if (!user || !user.refreshTokens.includes(refreshToken)) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      res.status(401).json({ message: 'Invalid refresh token' });
+      return;
     }
 
-    // Generate new tokens
     const tokens = generateTokens(user._id.toString(), user.email);
 
-    // Replace old refresh token with new one
     user.refreshTokens = user.refreshTokens.filter(t => t !== refreshToken);
     user.refreshTokens.push(tokens.refreshToken);
     await user.save();
@@ -232,7 +231,7 @@ router.post('/refresh', async (req: AuthRequest, res: Response) => {
     console.error('Refresh error:', error);
     res.status(401).json({ message: 'Invalid refresh token' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -246,7 +245,7 @@ router.post('/refresh', async (req: AuthRequest, res: Response) => {
  *       200:
  *         description: Logged out successfully
  */
-router.post('/logout', jwtAuth, async (req: AuthRequest, res: Response) => {
+router.post('/logout', jwtMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const { refreshToken } = req.body;
 
@@ -262,6 +261,81 @@ router.post('/logout', jwtAuth, async (req: AuthRequest, res: Response) => {
     console.error('Logout error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
+
+/**
+ * @swagger
+ * /api/web/auth/google:
+ *   get:
+ *     summary: Initiate Google OAuth login
+ *     tags: [Web Auth]
+ *     description: Redirects user to Google for authentication
+ *     responses:
+ *       302:
+ *         description: Redirect to Google OAuth
+ */
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false
+  })
+);
+
+/**
+ * @swagger
+ * /api/web/auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback
+ *     tags: [Web Auth]
+ *     description: Handles the callback from Google after authentication
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: OAuth authorization code from Google
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend with tokens
+ *       401:
+ *         description: Authentication failed
+ */
+router.get(
+  '/google/callback',
+  passport.authenticate('google', {
+    session: false,
+    failureRedirect: '/login?error=oauth_failed'
+  }),
+  (async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+
+      if (!user) {
+        res.redirect('/login?error=oauth_failed');
+        return;
+      }
+
+      const { accessToken, refreshToken } = generateTokens(
+        user._id.toString(),
+        user.email
+      );
+
+      const userDoc = await User.findById(user._id).select('+refreshTokens');
+      if (userDoc) {
+        userDoc.refreshTokens.push(refreshToken);
+        await userDoc.save();
+      }
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(
+        `${frontendUrl}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}`
+      );
+    } catch (error) {
+      console.error('Google callback error:', error);
+      res.redirect('/login?error=server_error');
+    }
+  }) as RequestHandler
+);
 
 export default router;

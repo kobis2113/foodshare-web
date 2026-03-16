@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Response, RequestHandler } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { Post } from '../../models/Post';
 import { Comment } from '../../models/Comment';
@@ -7,6 +7,9 @@ import { AuthRequest } from '../../middleware/jwtAuth';
 import { uploadImage } from '../../middleware/upload';
 
 const router = Router();
+
+// Type helper to avoid repetitive casting
+const authMiddleware = combinedAuth as RequestHandler;
 
 /**
  * @swagger
@@ -34,12 +37,12 @@ const router = Router();
  */
 router.get(
   '/',
-  combinedAuth,
+  authMiddleware,
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 50 })
   ],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
@@ -76,7 +79,7 @@ router.get(
       console.error('Get posts error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -100,14 +103,15 @@ router.get(
  *       404:
  *         description: Post not found
  */
-router.get('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.get('/:id', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const post = await Post.findById(req.params.id)
       .populate('author', 'displayName profileImage')
       .lean();
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      res.status(404).json({ message: 'Post not found' });
+      return;
     }
 
     res.json({
@@ -120,7 +124,7 @@ router.get('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
     console.error('Get post error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -154,21 +158,23 @@ router.get('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
  */
 router.post(
   '/',
-  combinedAuth,
+  authMiddleware,
   uploadImage.single('image'),
   [
     body('mealName').trim().isLength({ min: 1, max: 100 }),
     body('description').optional().trim().isLength({ max: 500 })
   ],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400).json({ errors: errors.array() });
+        return;
       }
 
       if (!req.file) {
-        return res.status(400).json({ message: 'Image is required' });
+        res.status(400).json({ message: 'Image is required' });
+        return;
       }
 
       const { mealName, description, nutrition } = req.body;
@@ -191,7 +197,7 @@ router.post(
       console.error('Create post error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -219,18 +225,20 @@ router.post(
  */
 router.put(
   '/:id',
-  combinedAuth,
+  authMiddleware,
   uploadImage.single('image'),
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const post = await Post.findById(req.params.id);
 
       if (!post) {
-        return res.status(404).json({ message: 'Post not found' });
+        res.status(404).json({ message: 'Post not found' });
+        return;
       }
 
       if (post.author.toString() !== req.userId) {
-        return res.status(403).json({ message: 'Not authorized' });
+        res.status(403).json({ message: 'Not authorized' });
+        return;
       }
 
       const { mealName, description, nutrition } = req.body;
@@ -251,7 +259,7 @@ router.put(
       console.error('Update post error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 /**
@@ -273,16 +281,18 @@ router.put(
  *       200:
  *         description: Post deleted
  */
-router.delete('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const post = await Post.findById(req.params.id);
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      res.status(404).json({ message: 'Post not found' });
+      return;
     }
 
     if (post.author.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Not authorized' });
+      res.status(403).json({ message: 'Not authorized' });
+      return;
     }
 
     // Delete associated comments
@@ -295,7 +305,7 @@ router.delete('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
     console.error('Delete post error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -316,12 +326,13 @@ router.delete('/:id', combinedAuth, async (req: AuthRequest, res: Response) => {
  *       200:
  *         description: Like toggled
  */
-router.post('/:id/like', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.post('/:id/like', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const post = await Post.findById(req.params.id);
 
     if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
+      res.status(404).json({ message: 'Post not found' });
+      return;
     }
 
     const userIdStr = req.userId!;
@@ -345,7 +356,7 @@ router.post('/:id/like', combinedAuth, async (req: AuthRequest, res: Response) =
     console.error('Like post error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -363,7 +374,7 @@ router.post('/:id/like', combinedAuth, async (req: AuthRequest, res: Response) =
  *       200:
  *         description: List of comments
  */
-router.get('/:id/comments', combinedAuth, async (req: AuthRequest, res: Response) => {
+router.get('/:id/comments', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const comments = await Comment.find({ post: req.params.id })
       .sort({ createdAt: -1 })
@@ -375,7 +386,7 @@ router.get('/:id/comments', combinedAuth, async (req: AuthRequest, res: Response
     console.error('Get comments error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-});
+}) as RequestHandler);
 
 /**
  * @swagger
@@ -409,18 +420,20 @@ router.get('/:id/comments', combinedAuth, async (req: AuthRequest, res: Response
  */
 router.post(
   '/:id/comments',
-  combinedAuth,
+  authMiddleware,
   [body('text').trim().isLength({ min: 1, max: 500 })],
-  async (req: AuthRequest, res: Response) => {
+  (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        res.status(400).json({ errors: errors.array() });
+        return;
       }
 
       const post = await Post.findById(req.params.id);
       if (!post) {
-        return res.status(404).json({ message: 'Post not found' });
+        res.status(404).json({ message: 'Post not found' });
+        return;
       }
 
       const comment = await Comment.create({
@@ -442,7 +455,7 @@ router.post(
       console.error('Add comment error:', error);
       res.status(500).json({ message: 'Server error' });
     }
-  }
+  }) as RequestHandler
 );
 
 export default router;
