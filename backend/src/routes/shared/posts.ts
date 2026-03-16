@@ -84,6 +84,85 @@ router.get(
 
 /**
  * @swagger
+ * /api/posts/search:
+ *   get:
+ *     summary: Search posts by meal name or description
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+router.get('/search', authMiddleware, (async (req: AuthRequest, res: Response) => {
+  try {
+    const searchQuery = req.query.q as string;
+
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      res.status(400).json({ message: 'Search query required' });
+      return;
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const posts = await Post.find(
+      { $text: { $search: searchQuery } },
+      { score: { $meta: 'textScore' } }
+    )
+      .sort({ score: { $meta: 'textScore' }, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('author', 'displayName profileImage')
+      .lean();
+
+    const postsWithLikeStatus = posts.map(post => ({
+      ...post,
+      isLiked: post.likes.some(
+        (likeId: any) => likeId.toString() === req.userId
+      )
+    }));
+
+    const total = await Post.countDocuments({ $text: { $search: searchQuery } });
+
+    res.json({
+      posts: postsWithLikeStatus,
+      query: searchQuery,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+        hasMore: page * limit < total
+      }
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}) as RequestHandler);
+
+/**
+ * @swagger
  * /api/posts/{id}:
  *   get:
  *     summary: Get post by ID

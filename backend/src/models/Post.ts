@@ -127,4 +127,7 @@ const postSchema = new Schema<IPost>(
 postSchema.index({ createdAt: -1 });
 postSchema.index({ author: 1, createdAt: -1 });
 
+// Text index for search
+postSchema.index({ mealName: 'text', description: 'text' });
+
 export const Post = mongoose.model<IPost>('Post', postSchema);
