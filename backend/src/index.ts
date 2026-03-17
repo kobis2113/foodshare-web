@@ -63,9 +63,9 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Swagger docs: http://localhost:${PORT}/api-docs`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT} and listening on 0.0.0.0`);
+      console.log(`Swagger docs: http://0.0.0.0:${PORT}/api-docs`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

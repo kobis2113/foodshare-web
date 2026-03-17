@@ -29,11 +29,13 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # If you terminate TLS at nginx in-container, uncomment and mount certs.
-      # - "443:443"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Mount TLS certificates for HTTPS (see nginx/conf.d/app.conf)
+      # Expecting files like fullchain.pem and privkey.pem inside ./nginx/certs
+      - /etc/nginx/certs:/etc/nginx/certs:ro
       # If you want nginx to serve uploads directly (optional), also mount:
       # - backend_uploads:/var/www/uploads:ro
 

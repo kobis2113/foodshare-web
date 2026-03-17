@@ -7,25 +7,12 @@ This repo currently contains the backend API. MongoDB is assumed to already be r
 - DNS points your domain to the server (optional but recommended)
 - Firewall allows `80/tcp` (and `443/tcp` if enabling TLS)
 
-### 2) Create a production `.env` (on the server)
-Create `foodshare-web/.env` (do not commit it):
+### 2) Create `backend.env` (on the server)
+Compose expects `backend.env` in the repo root. Copy the example and set real values (do not commit `backend.env`):
 
 ```bash
-PORT=3000
-NODE_ENV=production
-MONGODB_URI=mongodb://<user>:<pass>@<mongo-host>:27017/foodshare?authSource=admin
-
-JWT_SECRET=change-me
-JWT_REFRESH_SECRET=change-me
-
-# If you use these features, set them too:
-FRONTEND_URL=https://your-domain.example
-GOOGLE_CALLBACK_URL=https://your-domain.example/api/web/auth/google/callback
-GEMINI_API_KEY=...
-NUTRITION_API_KEY=...
-
-UPLOAD_DIR=uploads
-MAX_FILE_SIZE=5242880
+cp backend.env.example backend.env
+nano backend.env   # set MONGODB_URI, JWT_SECRET, JWT_REFRESH_SECRET, etc.
 ```
 
 ### 3) Deploy
