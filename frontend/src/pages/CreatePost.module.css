@@ -163,3 +163,18 @@
 .textareaError:focus {
   border-color: var(--error, #dc2626);
 }
+
+.notFound {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.tipsHeader {
+  margin-top: var(--spacing-sm);
+}
+
+.buttonGroup {
+  display: flex;
+  gap: var(--spacing-md);
+}

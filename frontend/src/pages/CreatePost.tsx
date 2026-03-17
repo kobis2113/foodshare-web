@@ -180,7 +180,7 @@ const CreatePost: React.FC = () => {
               )}
               {nutritionTips.length > 0 && (
                 <>
-                  <h4 style={{ marginTop: nutritionData ? '12px' : 0 }}>Health Tips</h4>
+                  <h4 className={nutritionData ? styles.tipsHeader : undefined}>Health Tips</h4>
                   <ul>
                     {nutritionTips.map((tip, index) => (
                       <li key={index}>{tip}</li>

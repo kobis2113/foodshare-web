@@ -5,7 +5,7 @@ import type { Post, Comment } from '../types';
 import { useAuth } from '../context/AuthContext';
 import postService from '../services/postService';
 import { Button, Input, Loader } from '../components/common';
-import { BASE_URL } from '../services/api';
+import { getImageUrl, getProfileImageUrl } from '../utils/imageUtils';
 import styles from './PostDetail.module.css';
 
 interface LikeUser {
@@ -46,18 +46,6 @@ const PostDetail: React.FC = () => {
 
     fetchData();
   }, [id, navigate]);
-
-  const getImageUrl = (image?: string) => {
-    if (!image) return '/default-food.svg';
-    if (image.startsWith('http')) return image;
-    return `${BASE_URL}${image.startsWith('/') ? '' : '/'}${image}`;
-  };
-
-  const getProfileImageUrl = (profileImage?: string) => {
-    if (!profileImage) return '/default-avatar.svg';
-    if (profileImage.startsWith('http')) return profileImage;
-    return `${BASE_URL}${profileImage.startsWith('/') ? '' : '/'}${profileImage}`;
-  };
 
   const handleLike = async () => {
     if (!post || !id) return;

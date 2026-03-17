@@ -339,7 +339,6 @@ router.get(
 
       const userQuery = req.query.q as string;
 
-      // Step 1: Use AI to interpret the natural language query
       const interpretPrompt = `You are a food search assistant. Analyze this search query and extract search criteria.
 Query: "${userQuery}"
 
@@ -378,7 +377,6 @@ Return ONLY the JSON object, no other text.`;
         };
       }
 
-      // Step 2: Build MongoDB query based on AI interpretation
       const mongoQuery: any = {};
 
       // Text search with keywords
@@ -402,7 +400,6 @@ Return ONLY the JSON object, no other text.`;
         }
       }
 
-      // Step 3: Execute search
       let posts;
       if (Object.keys(mongoQuery).length > 0) {
         posts = await Post.find(mongoQuery)
@@ -425,7 +422,6 @@ Return ONLY the JSON object, no other text.`;
         isLiked: post.likes.some((likeId: any) => likeId.toString() === req.userId)
       }));
 
-      // Step 4: Use AI to rank and explain results if we have posts
       let aiInsights = null;
       if (postsWithLikeStatus.length > 0) {
         const postSummaries = postsWithLikeStatus.slice(0, 5).map(p => ({

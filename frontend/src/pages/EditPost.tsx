@@ -8,7 +8,7 @@ import type { Post } from '../types';
 import postService from '../services/postService';
 import aiService from '../services/aiService';
 import { Button, Input, Loader } from '../components/common';
-import { BASE_URL } from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 import styles from './CreatePost.module.css';
 
 const editPostSchema = z.object({
@@ -82,12 +82,6 @@ const EditPost: React.FC = () => {
 
     fetchPost();
   }, [id, navigate, reset]);
-
-  const getImageUrl = (image?: string) => {
-    if (!image) return '/default-food.svg';
-    if (image.startsWith('http')) return image;
-    return `${BASE_URL}${image.startsWith('/') ? '' : '/'}${image}`;
-  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,7 +179,7 @@ const EditPost: React.FC = () => {
   }
 
   if (!originalPost) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Post not found</div>;
+    return <div className={styles.notFound}>Post not found</div>;
   }
 
   return (
@@ -240,7 +234,7 @@ const EditPost: React.FC = () => {
               )}
               {nutritionTips.length > 0 && (
                 <>
-                  <h4 style={{ marginTop: nutritionData ? '12px' : 0 }}>Health Tips</h4>
+                  <h4 className={nutritionData ? styles.tipsHeader : undefined}>Health Tips</h4>
                   <ul>
                     {nutritionTips.map((tip, index) => (
                       <li key={index}>{tip}</li>
@@ -262,7 +256,7 @@ const EditPost: React.FC = () => {
             {errors.description && <p className={styles.errorText}>{errors.description.message}</p>}
           </div>
 
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className={styles.buttonGroup}>
             <Button type="button" variant="danger" onClick={handleDelete}>
               Delete Post
             </Button>

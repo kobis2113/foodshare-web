@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Post } from '../../types';
-import { BASE_URL } from '../../services/api';
+import { getImageUrl, getProfileImageUrl } from '../../utils/imageUtils';
 import styles from './PostCard.module.css';
 
 interface PostCardProps {
@@ -10,18 +10,6 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, onLike }) => {
-  const getImageUrl = (image?: string) => {
-    if (!image) return '/default-food.svg';
-    if (image.startsWith('http')) return image;
-    return `${BASE_URL}${image.startsWith('/') ? '' : '/'}${image}`;
-  };
-
-  const getProfileImageUrl = (profileImage?: string) => {
-    if (!profileImage) return '/default-avatar.svg';
-    if (profileImage.startsWith('http')) return profileImage;
-    return `${BASE_URL}${profileImage.startsWith('/') ? '' : '/'}${profileImage}`;
-  };
-
   return (
     <article className={styles.card}>
       <div className={styles.header}>

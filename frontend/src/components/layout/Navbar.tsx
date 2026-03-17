@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BASE_URL } from '../../services/api';
+import { getProfileImageUrl } from '../../utils/imageUtils';
 import styles from './Navbar.module.css';
 
 const Navbar: React.FC = () => {
@@ -14,12 +14,6 @@ const Navbar: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  const getProfileImageUrl = (profileImage?: string) => {
-    if (!profileImage) return '/default-avatar.svg';
-    if (profileImage.startsWith('http')) return profileImage;
-    return `${BASE_URL}${profileImage.startsWith('/') ? '' : '/'}${profileImage}`;
   };
 
   return (

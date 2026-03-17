@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
 import { Button, Input } from '../components/common';
-import { BASE_URL } from '../services/api';
+import { getProfileImageUrl } from '../utils/imageUtils';
 import styles from './EditProfile.module.css';
 
 const editProfileSchema = z.object({
@@ -33,12 +33,6 @@ const EditProfile: React.FC = () => {
     resolver: zodResolver(editProfileSchema),
     defaultValues: { displayName: user?.displayName || '' },
   });
-
-  const getProfileImageUrl = (profileImage?: string) => {
-    if (!profileImage) return '/default-avatar.svg';
-    if (profileImage.startsWith('http')) return profileImage;
-    return `${BASE_URL}${profileImage.startsWith('/') ? '' : '/'}${profileImage}`;
-  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

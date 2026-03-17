@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import type { Post } from '../types';
 import postService from '../services/postService';
 import { Button, Loader } from '../components/common';
-import { BASE_URL } from '../services/api';
+import { getImageUrl, getProfileImageUrl } from '../utils/imageUtils';
 import styles from './Profile.module.css';
 
 const Profile: React.FC = () => {
@@ -38,18 +38,6 @@ const Profile: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  const getProfileImageUrl = (profileImage?: string) => {
-    if (!profileImage) return '/default-avatar.svg';
-    if (profileImage.startsWith('http')) return profileImage;
-    return `${BASE_URL}${profileImage.startsWith('/') ? '' : '/'}${profileImage}`;
-  };
-
-  const getImageUrl = (image?: string) => {
-    if (!image) return '/default-food.svg';
-    if (image.startsWith('http')) return image;
-    return `${BASE_URL}${image.startsWith('/') ? '' : '/'}${image}`;
   };
 
   if (isLoading) {
