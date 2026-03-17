@@ -3,7 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/layout';
 import { Loader } from './components/common';
-import { Home, Login, Register, CreatePost, MyPosts, Profile, EditProfile, PostDetail, EditPost } from './pages';
+import { Home, Login, Register, CreatePost, MyPosts, Profile, EditProfile, PostDetail, EditPost, AuthCallback } from './pages';
 import './styles/globals.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -48,6 +48,7 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />

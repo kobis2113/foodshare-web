@@ -8,6 +8,12 @@ import { Button, Input, Loader } from '../components/common';
 import { BASE_URL } from '../services/api';
 import styles from './PostDetail.module.css';
 
+interface LikeUser {
+  _id: string;
+  displayName: string;
+  profileImage?: string;
+}
+
 const PostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -17,6 +23,8 @@ const PostDetail: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLikes, setShowLikes] = useState(false);
+  const [likeUsers, setLikeUsers] = useState<LikeUser[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -92,6 +100,33 @@ const PostDetail: React.FC = () => {
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!id || !confirm('Delete this comment?')) return;
+
+    try {
+      await postService.deleteComment(id, commentId);
+      setComments(prev => prev.filter(c => c._id !== commentId));
+      if (post) {
+        setPost({ ...post, commentsCount: Math.max(0, post.commentsCount - 1) });
+      }
+      toast.success('Comment deleted');
+    } catch {
+      toast.error('Failed to delete comment');
+    }
+  };
+
+  const handleShowLikes = async () => {
+    if (!id || !post?.likesCount) return;
+
+    try {
+      const response = await postService.getLikes(id);
+      setLikeUsers(response.users);
+      setShowLikes(true);
+    } catch {
+      toast.error('Failed to load likes');
+    }
+  };
+
   if (isLoading) {
     return <Loader fullScreen />;
   }
@@ -110,6 +145,8 @@ const PostDetail: React.FC = () => {
             src={getProfileImageUrl(post.author.profileImage)}
             alt={post.author.displayName}
             className={styles.avatar}
+            referrerPolicy="no-referrer"
+            onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.svg'; }}
           />
           <div className={styles.authorInfo}>
             <span className={styles.authorName}>{post.author.displayName}</span>
@@ -125,7 +162,12 @@ const PostDetail: React.FC = () => {
           )}
         </div>
 
-        <img src={getImageUrl(post.image)} alt={post.mealName} className={styles.image} />
+        <img
+          src={getImageUrl(post.image)}
+          alt={post.mealName}
+          className={styles.image}
+          onError={(e) => { (e.target as HTMLImageElement).src = '/default-food.svg'; }}
+        />
 
         <div className={styles.content}>
           <div className={styles.actions}>
@@ -133,7 +175,13 @@ const PostDetail: React.FC = () => {
               <svg viewBox="0 0 24 24" width="24" height="24" fill={post.isLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
-              <span>{post.likesCount}</span>
+            </button>
+            <button
+              className={styles.likesCount}
+              onClick={handleShowLikes}
+              disabled={!post.likesCount}
+            >
+              {post.likesCount} {post.likesCount === 1 ? 'like' : 'likes'}
             </button>
             <span className={styles.commentCount}>{post.commentsCount} comments</span>
           </div>
@@ -141,7 +189,7 @@ const PostDetail: React.FC = () => {
           <h1 className={styles.title}>{post.mealName}</h1>
           {post.description && <p className={styles.description}>{post.description}</p>}
 
-          {post.nutrition && (
+          {post.nutrition && (post.nutrition.calories || post.nutrition.protein || post.nutrition.carbs || post.nutrition.fat) && (
             <div className={styles.nutrition}>
               <h3>Nutrition Info</h3>
               <div className={styles.nutritionGrid}>
@@ -179,9 +227,21 @@ const PostDetail: React.FC = () => {
                   src={getProfileImageUrl(comment.author.profileImage)}
                   alt={comment.author.displayName}
                   className={styles.commentAvatar}
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.svg'; }}
                 />
                 <div className={styles.commentContent}>
-                  <span className={styles.commentAuthor}>{comment.author.displayName}</span>
+                  <div className={styles.commentHeader}>
+                    <span className={styles.commentAuthor}>{comment.author.displayName}</span>
+                    {user?._id === comment.author._id && (
+                      <button
+                        className={styles.deleteCommentBtn}
+                        onClick={() => handleDeleteComment(comment._id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                   <p className={styles.commentText}>{comment.text}</p>
                   <span className={styles.commentDate}>{new Date(comment.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -190,6 +250,39 @@ const PostDetail: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showLikes && (
+        <div className={styles.modalOverlay} onClick={() => setShowLikes(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Likes</h3>
+              <button className={styles.closeBtn} onClick={() => setShowLikes(false)}>
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className={styles.likesList}>
+              {likeUsers.length === 0 ? (
+                <p className={styles.noLikes}>No likes yet</p>
+              ) : (
+                likeUsers.map(likeUser => (
+                  <div key={likeUser._id} className={styles.likeUser}>
+                    <img
+                      src={getProfileImageUrl(likeUser.profileImage)}
+                      alt={likeUser.displayName}
+                      className={styles.likeUserAvatar}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.svg'; }}
+                    />
+                    <span className={styles.likeUserName}>{likeUser.displayName}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

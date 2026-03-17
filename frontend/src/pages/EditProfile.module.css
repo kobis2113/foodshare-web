@@ -40,6 +40,7 @@
   cursor: pointer;
   border: 3px solid var(--gray-200);
   transition: border-color 0.2s ease;
+  background-color: var(--gray-100);
 }
 
 .avatar:hover {
@@ -68,4 +69,10 @@
   gap: var(--spacing-md);
   justify-content: flex-end;
   margin-top: var(--spacing-md);
+}
+
+.errorText {
+  font-size: var(--text-sm);
+  color: var(--error, #dc2626);
+  margin-top: var(--spacing-xs);
 }

@@ -127,6 +127,9 @@ const postSchema = new Schema<IPost>(
 postSchema.index({ createdAt: -1 });
 postSchema.index({ author: 1, createdAt: -1 });
 
+// Index for efficient like lookups
+postSchema.index({ likes: 1 });
+
 // Text index for search
 postSchema.index({ mealName: 'text', description: 'text' });
 

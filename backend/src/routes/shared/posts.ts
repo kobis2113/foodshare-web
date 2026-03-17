@@ -405,31 +405,92 @@ router.delete('/:id', authMiddleware, (async (req: AuthRequest, res: Response) =
  *       200:
  *         description: Like toggled
  */
-router.post('/:id/like', authMiddleware, (async (req: AuthRequest, res: Response) => {
+/**
+ * @swagger
+ * /api/posts/{id}/likes:
+ *   get:
+ *     summary: Get users who liked a post
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of users who liked the post
+ */
+router.get('/:id/likes', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id)
+      .populate('likes', 'displayName profileImage')
+      .lean();
 
     if (!post) {
       res.status(404).json({ message: 'Post not found' });
       return;
     }
 
-    const userIdStr = req.userId!;
-    const isLiked = post.likes.some(id => id.toString() === userIdStr);
+    res.json({ users: post.likes });
+  } catch (error) {
+    console.error('Get likes error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}) as RequestHandler);
 
-    if (isLiked) {
-      post.likes = post.likes.filter(id => id.toString() !== userIdStr);
-      post.likesCount = Math.max(0, post.likesCount - 1);
+router.post('/:id/like', authMiddleware, (async (req: AuthRequest, res: Response) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.userId!;
+
+    // Check if user already liked the post (efficient indexed query)
+    const existingLike = await Post.findOne({
+      _id: postId,
+      likes: userId
+    }).select('_id').lean();
+
+    let updatedPost;
+
+    if (existingLike) {
+      // Unlike: Use atomic $pull and $inc operations
+      updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        {
+          $pull: { likes: userId },
+          $inc: { likesCount: -1 }
+        },
+        { new: true }
+      ).select('likesCount').lean();
     } else {
-      post.likes.push(req.userId as any);
-      post.likesCount += 1;
+      // Like: Use atomic $addToSet and $inc operations
+      updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        {
+          $addToSet: { likes: userId },
+          $inc: { likesCount: 1 }
+        },
+        { new: true }
+      ).select('likesCount').lean();
     }
 
-    await post.save();
+    if (!updatedPost) {
+      res.status(404).json({ message: 'Post not found' });
+      return;
+    }
+
+    // Ensure likesCount doesn't go negative
+    if (updatedPost.likesCount < 0) {
+      await Post.findByIdAndUpdate(postId, { likesCount: 0 });
+      updatedPost.likesCount = 0;
+    }
 
     res.json({
-      isLiked: !isLiked,
-      likesCount: post.likesCount
+      isLiked: !existingLike,
+      likesCount: updatedPost.likesCount
     });
   } catch (error) {
     console.error('Like post error:', error);
@@ -536,5 +597,62 @@ router.post(
     }
   }) as RequestHandler
 );
+
+/**
+ * @swagger
+ * /api/posts/{postId}/comments/{commentId}:
+ *   delete:
+ *     summary: Delete a comment (owner only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Comment deleted
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Comment not found
+ */
+router.delete('/:postId/comments/:commentId', authMiddleware, (async (req: AuthRequest, res: Response) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+
+    if (!comment) {
+      res.status(404).json({ message: 'Comment not found' });
+      return;
+    }
+
+    if (comment.author.toString() !== req.userId) {
+      res.status(403).json({ message: 'Not authorized' });
+      return;
+    }
+
+    const post = await Post.findById(req.params.postId);
+    if (post) {
+      post.commentsCount = Math.max(0, post.commentsCount - 1);
+      await post.save();
+    }
+
+    await comment.deleteOne();
+
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+}) as RequestHandler);
 
 export default router;

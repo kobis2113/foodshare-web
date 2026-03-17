@@ -42,6 +42,7 @@ const Navbar: React.FC = () => {
                     src={getProfileImageUrl(user?.profileImage)}
                     alt={user?.displayName || 'Profile'}
                     className={styles.avatar}
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = '/default-avatar.svg';
                     }}

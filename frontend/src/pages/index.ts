@@ -7,3 +7,4 @@ export { default as Profile } from './Profile';
 export { default as EditProfile } from './EditProfile';
 export { default as PostDetail } from './PostDetail';
 export { default as EditPost } from './EditPost';
+export { default as AuthCallback } from './AuthCallback';

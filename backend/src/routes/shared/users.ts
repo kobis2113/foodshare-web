@@ -38,6 +38,7 @@ router.get('/me', authMiddleware, (async (req: AuthRequest, res: Response) => {
     ]);
 
     res.json({
+      _id: user._id,
       id: user._id,
       email: user.email,
       displayName: user.displayName,

@@ -52,6 +52,12 @@ export const postService = {
     return response.data;
   },
 
+  // Get users who liked a post
+  getLikes: async (postId: string): Promise<{ users: Array<{ _id: string; displayName: string; profileImage?: string }> }> => {
+    const response = await api.get<{ users: Array<{ _id: string; displayName: string; profileImage?: string }> }>(`/api/posts/${postId}/likes`);
+    return response.data;
+  },
+
   // Get comments
   getComments: async (postId: string): Promise<{ comments: Comment[] }> => {
     const response = await api.get<{ comments: Comment[] }>(`/api/posts/${postId}/comments`);
@@ -61,6 +67,12 @@ export const postService = {
   // Add comment
   addComment: async (postId: string, text: string): Promise<{ message: string; comment: Comment }> => {
     const response = await api.post<{ message: string; comment: Comment }>(`/api/posts/${postId}/comments`, { text });
+    return response.data;
+  },
+
+  // Delete comment
+  deleteComment: async (postId: string, commentId: string): Promise<{ message: string }> => {
+    const response = await api.delete<{ message: string }>(`/api/posts/${postId}/comments/${commentId}`);
     return response.data;
   },
 

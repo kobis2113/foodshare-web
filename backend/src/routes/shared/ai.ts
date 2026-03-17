@@ -1,10 +1,43 @@
 import { Router, Response, RequestHandler } from 'express';
-import { body, validationResult } from 'express-validator';
+import { body, query, validationResult } from 'express-validator';
 import { combinedAuth } from '../../middleware/firebaseAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
+import { Post } from '../../models/Post';
 
 const router = Router();
 const authMiddleware = combinedAuth as RequestHandler;
+
+// AI-specific rate limiting (stricter than general API)
+const aiRequestCounts = new Map<string, { count: number; resetTime: number }>();
+const AI_RATE_LIMIT = 20; // 20 AI requests per minute
+const AI_RATE_WINDOW = 60 * 1000; // 1 minute
+
+const checkAIRateLimit = (userId: string): boolean => {
+  const now = Date.now();
+  const userLimit = aiRequestCounts.get(userId);
+
+  if (!userLimit || now > userLimit.resetTime) {
+    aiRequestCounts.set(userId, { count: 1, resetTime: now + AI_RATE_WINDOW });
+    return true;
+  }
+
+  if (userLimit.count >= AI_RATE_LIMIT) {
+    return false;
+  }
+
+  userLimit.count++;
+  return true;
+};
+
+// Clean up old entries every minute
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of aiRequestCounts.entries()) {
+    if (value.resetTime < now) {
+      aiRequestCounts.delete(key);
+    }
+  }
+}, 60000);
 
 interface GeminiResponse {
   candidates?: Array<{
@@ -259,6 +292,201 @@ Return only the JSON array.`;
         message: 'AI service unavailable',
         error: error.message
       });
+    }
+  }) as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/ai/smart-search:
+ *   get:
+ *     summary: AI-powered natural language search for posts
+ *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Natural language search query (e.g., "healthy breakfast with protein")
+ *     responses:
+ *       200:
+ *         description: AI-analyzed search results with explanations
+ */
+router.get(
+  '/smart-search',
+  authMiddleware,
+  [query('q').trim().isLength({ min: 2, max: 200 })],
+  (async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      // Check AI rate limit
+      if (!checkAIRateLimit(req.userId!)) {
+        res.status(429).json({
+          message: 'AI rate limit exceeded. Please wait a moment before trying again.',
+          retryAfter: 60
+        });
+        return;
+      }
+
+      const userQuery = req.query.q as string;
+
+      // Step 1: Use AI to interpret the natural language query
+      const interpretPrompt = `You are a food search assistant. Analyze this search query and extract search criteria.
+Query: "${userQuery}"
+
+Respond in JSON format only:
+{
+  "keywords": ["keyword1", "keyword2"],
+  "nutritionFilters": {
+    "highProtein": true/false,
+    "lowCalorie": true/false,
+    "lowCarb": true/false,
+    "lowFat": true/false
+  },
+  "mealType": "breakfast/lunch/dinner/snack/any",
+  "healthFocus": "description of what user is looking for",
+  "searchExplanation": "brief explanation of how you interpreted the query"
+}
+
+Return ONLY the JSON object, no other text.`;
+
+      const interpretResponse = await callGeminiAPI(interpretPrompt);
+
+      // Parse AI interpretation
+      let searchCriteria;
+      try {
+        const jsonMatch = interpretResponse.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Invalid format');
+        searchCriteria = JSON.parse(jsonMatch[0]);
+      } catch {
+        // Fallback to basic text search if AI parsing fails
+        searchCriteria = {
+          keywords: userQuery.split(' ').filter(w => w.length > 2),
+          nutritionFilters: {},
+          mealType: 'any',
+          healthFocus: userQuery,
+          searchExplanation: 'Using basic keyword search'
+        };
+      }
+
+      // Step 2: Build MongoDB query based on AI interpretation
+      const mongoQuery: any = {};
+
+      // Text search with keywords
+      if (searchCriteria.keywords && searchCriteria.keywords.length > 0) {
+        mongoQuery.$text = { $search: searchCriteria.keywords.join(' ') };
+      }
+
+      // Nutrition filters
+      if (searchCriteria.nutritionFilters) {
+        if (searchCriteria.nutritionFilters.highProtein) {
+          mongoQuery['nutrition.protein'] = { $gte: 20 };
+        }
+        if (searchCriteria.nutritionFilters.lowCalorie) {
+          mongoQuery['nutrition.calories'] = { $lte: 400 };
+        }
+        if (searchCriteria.nutritionFilters.lowCarb) {
+          mongoQuery['nutrition.carbs'] = { $lte: 30 };
+        }
+        if (searchCriteria.nutritionFilters.lowFat) {
+          mongoQuery['nutrition.fat'] = { $lte: 15 };
+        }
+      }
+
+      // Step 3: Execute search
+      let posts;
+      if (Object.keys(mongoQuery).length > 0) {
+        posts = await Post.find(mongoQuery)
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .populate('author', 'displayName profileImage')
+          .lean();
+      } else {
+        // Fallback: get recent posts if no specific criteria
+        posts = await Post.find()
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .populate('author', 'displayName profileImage')
+          .lean();
+      }
+
+      // Add isLiked field
+      const postsWithLikeStatus = posts.map(post => ({
+        ...post,
+        isLiked: post.likes.some((likeId: any) => likeId.toString() === req.userId)
+      }));
+
+      // Step 4: Use AI to rank and explain results if we have posts
+      let aiInsights = null;
+      if (postsWithLikeStatus.length > 0) {
+        const postSummaries = postsWithLikeStatus.slice(0, 5).map(p => ({
+          name: p.mealName,
+          description: p.description || '',
+          nutrition: p.nutrition
+        }));
+
+        const insightsPrompt = `Based on the search "${userQuery}", here are the top meals found:
+${JSON.stringify(postSummaries, null, 2)}
+
+Provide a brief helpful response (2-3 sentences) explaining how these results match the search and any nutrition insights. Be concise and friendly.`;
+
+        try {
+          aiInsights = await callGeminiAPI(insightsPrompt);
+        } catch {
+          aiInsights = null;
+        }
+      }
+
+      res.json({
+        posts: postsWithLikeStatus,
+        searchCriteria,
+        aiInsights,
+        totalResults: postsWithLikeStatus.length,
+        source: 'gemini'
+      });
+
+    } catch (error: any) {
+      console.error('AI smart search error:', error.message);
+
+      // Fallback to basic search on AI failure
+      try {
+        const userQuery = req.query.q as string;
+        const posts = await Post.find(
+          { $text: { $search: userQuery } },
+          { score: { $meta: 'textScore' } }
+        )
+          .sort({ score: { $meta: 'textScore' } })
+          .limit(20)
+          .populate('author', 'displayName profileImage')
+          .lean();
+
+        const postsWithLikeStatus = posts.map(post => ({
+          ...post,
+          isLiked: post.likes.some((likeId: any) => likeId.toString() === req.userId)
+        }));
+
+        res.json({
+          posts: postsWithLikeStatus,
+          searchCriteria: { keywords: [userQuery], fallback: true },
+          aiInsights: null,
+          totalResults: postsWithLikeStatus.length,
+          source: 'fallback'
+        });
+      } catch (fallbackError) {
+        res.status(503).json({
+          message: 'Search service unavailable',
+          error: error.message
+        });
+      }
     }
   }) as RequestHandler
 );

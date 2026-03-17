@@ -24,6 +24,8 @@
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
+  background-color: var(--gray-100);
+  flex-shrink: 0;
 }
 
 .authorInfo {
@@ -51,6 +53,8 @@
   width: 100%;
   aspect-ratio: 4/3;
   object-fit: cover;
+  background-color: var(--gray-100);
+  display: block;
 }
 
 .content {
@@ -181,17 +185,38 @@
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
+  background-color: var(--gray-100);
+  flex-shrink: 0;
 }
 
 .commentContent {
   flex: 1;
 }
 
+.commentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .commentAuthor {
   font-weight: 600;
   font-size: var(--text-sm);
   color: var(--text-primary);
-  margin-right: var(--spacing-xs);
+}
+
+.deleteCommentBtn {
+  background: none;
+  border: none;
+  color: var(--error);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.deleteCommentBtn:hover {
+  background-color: var(--error-light);
 }
 
 .commentText {
@@ -211,4 +236,115 @@
   text-align: center;
   padding: var(--spacing-2xl);
   color: var(--text-secondary);
+}
+
+.likesCount {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  padding: 0;
+  font-weight: 500;
+}
+
+.likesCount:hover:not(:disabled) {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.likesCount:disabled {
+  cursor: default;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.modalHeader h3 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeBtn:hover {
+  background-color: var(--gray-100);
+  color: var(--text-primary);
+}
+
+.likesList {
+  padding: var(--spacing-md);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.noLikes {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-lg);
+}
+
+.likeUser {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+}
+
+.likeUser + .likeUser {
+  border-top: 1px solid var(--gray-100);
+}
+
+.likeUserAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: var(--gray-100);
+  flex-shrink: 0;
+}
+
+.likeUserName {
+  font-weight: 500;
+  color: var(--text-primary);
 }

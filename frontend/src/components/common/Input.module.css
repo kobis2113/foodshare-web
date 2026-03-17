@@ -38,6 +38,12 @@
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
+.input:disabled {
+  background-color: var(--gray-100);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
 .hasLeftIcon {
   padding-left: 44px;
 }
@@ -79,4 +85,23 @@
 .helperText {
   font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+.togglePassword {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.togglePassword:hover {
+  color: var(--text-primary);
+  background-color: var(--gray-100);
 }

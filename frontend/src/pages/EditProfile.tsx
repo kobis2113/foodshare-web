@@ -1,5 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import userService from '../services/userService';
@@ -7,14 +10,29 @@ import { Button, Input } from '../components/common';
 import { BASE_URL } from '../services/api';
 import styles from './EditProfile.module.css';
 
+const editProfileSchema = z.object({
+  displayName: z.string().min(2, 'Display name must be at least 2 characters').max(50, 'Display name must be less than 50 characters'),
+});
+
+type EditProfileFormData = z.infer<typeof editProfileSchema>;
+
 const EditProfile: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<EditProfileFormData>({
+    resolver: zodResolver(editProfileSchema),
+    defaultValues: { displayName: user?.displayName || '' },
+  });
 
   const getProfileImageUrl = (profileImage?: string) => {
     if (!profileImage) return '/default-avatar.svg';
@@ -25,6 +43,18 @@ const EditProfile: React.FC = () => {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setImageError('Please select a valid image (JPEG, PNG, GIF, or WebP)');
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setImageError('Image must be less than 5MB');
+        return;
+      }
+      setImageError(null);
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -34,18 +64,11 @@ const EditProfile: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!displayName.trim()) {
-      toast.error('Display name is required');
-      return;
-    }
-
+  const onSubmit = async (data: EditProfileFormData) => {
     setIsLoading(true);
     try {
       const formData = new FormData();
-      formData.append('displayName', displayName);
+      formData.append('displayName', data.displayName);
       if (selectedFile) {
         formData.append('profileImage', selectedFile);
       }
@@ -66,12 +89,13 @@ const EditProfile: React.FC = () => {
       <div className={styles.card}>
         <h1 className={styles.title}>Edit Profile</h1>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
           <div className={styles.avatarSection}>
             <img
               src={imagePreview || getProfileImageUrl(user?.profileImage)}
               alt={user?.displayName}
               className={styles.avatar}
+              referrerPolicy="no-referrer"
               onClick={() => fileInputRef.current?.click()}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/default-avatar.svg';
@@ -91,14 +115,15 @@ const EditProfile: React.FC = () => {
               onChange={handleImageSelect}
               className={styles.fileInput}
             />
+            {imageError && <p className={styles.errorText}>{imageError}</p>}
           </div>
 
           <Input
             label="Display Name"
             type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Your display name"
+            error={errors.displayName?.message}
+            {...register('displayName')}
           />
 
           <Input

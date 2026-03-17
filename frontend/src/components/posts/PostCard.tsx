@@ -29,6 +29,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike }) => {
           src={getProfileImageUrl(post.author?.profileImage)}
           alt={post.author?.displayName || 'User'}
           className={styles.avatar}
+          referrerPolicy="no-referrer"
           onError={(e) => {
             (e.target as HTMLImageElement).src = '/default-avatar.svg';
           }}
@@ -47,7 +48,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onLike }) => {
           alt={post.mealName}
           className={styles.image}
           onError={(e) => {
-            (e.target as HTMLImageElement).src = '/default-food.jpg';
+            (e.target as HTMLImageElement).src = '/default-food.svg';
           }}
         />
       </Link>

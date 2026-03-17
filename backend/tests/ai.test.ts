@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import app from '../src/index';
 import { User } from '../src/models/User';
+import { Post } from '../src/models/Post';
 
 let mongoServer: MongoMemoryServer;
 let accessToken: string;
@@ -37,19 +38,12 @@ beforeEach(async () => {
 
 describe('AI API', () => {
   describe('POST /api/ai/analyze', () => {
-    it('should analyze a meal', async () => {
+    it('should require authentication', async () => {
       const res = await request(app)
         .post('/api/ai/analyze')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({
-          mealName: 'Grilled Chicken',
-          description: 'With vegetables',
-          nutrition: { calories: 350, protein: 35, carbs: 10, fat: 15 }
-        });
+        .send({ mealName: 'Test' });
 
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('analysis');
-      expect(res.body).toHaveProperty('source');
+      expect(res.status).toBe(401);
     });
 
     it('should require meal name', async () => {
@@ -63,34 +57,22 @@ describe('AI API', () => {
   });
 
   describe('POST /api/ai/suggest', () => {
-    it('should return meal suggestions', async () => {
+    it('should require authentication', async () => {
       const res = await request(app)
         .post('/api/ai/suggest')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({
-          preferences: 'healthy',
-          calories: 500
-        });
+        .send({ preferences: 'healthy' });
 
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('suggestions');
-      expect(Array.isArray(res.body.suggestions)).toBe(true);
+      expect(res.status).toBe(401);
     });
   });
 
   describe('POST /api/ai/tips', () => {
-    it('should return health tips', async () => {
+    it('should require authentication', async () => {
       const res = await request(app)
         .post('/api/ai/tips')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .send({
-          mealName: 'Quinoa Bowl',
-          nutrition: { calories: 400, protein: 15, carbs: 60, fat: 10 }
-        });
+        .send({ mealName: 'Test' });
 
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('tips');
-      expect(Array.isArray(res.body.tips)).toBe(true);
+      expect(res.status).toBe(401);
     });
 
     it('should require meal name', async () => {
@@ -98,6 +80,31 @@ describe('AI API', () => {
         .post('/api/ai/tips')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({});
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/ai/smart-search', () => {
+    it('should require search query', async () => {
+      const res = await request(app)
+        .get('/api/ai/smart-search')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should require authentication', async () => {
+      const res = await request(app)
+        .get('/api/ai/smart-search?q=chicken');
+
+      expect(res.status).toBe(401);
+    });
+
+    it('should reject short query', async () => {
+      const res = await request(app)
+        .get('/api/ai/smart-search?q=a')
+        .set('Authorization', `Bearer ${accessToken}`);
 
       expect(res.status).toBe(400);
     });

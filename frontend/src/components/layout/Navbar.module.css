@@ -96,6 +96,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--gray-200);
+  background-color: var(--gray-100);
 }
 
 .userName {
@@ -105,8 +106,8 @@
 
 .logoutBtn {
   background: none;
-  border: 1px solid var(--gray-300);
-  color: var(--text-secondary);
+  border: 1px solid var(--error);
+  color: var(--error);
   padding: 8px 16px;
   border-radius: var(--radius-md);
   font-weight: 500;
@@ -115,9 +116,8 @@
 }
 
 .logoutBtn:hover {
-  border-color: var(--error);
-  color: var(--error);
-  background-color: var(--error-light);
+  background-color: var(--error);
+  color: var(--white);
 }
 
 /* Mobile responsive */

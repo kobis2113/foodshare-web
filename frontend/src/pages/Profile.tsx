@@ -65,6 +65,7 @@ const Profile: React.FC = () => {
           src={getProfileImageUrl(user?.profileImage)}
           alt={user?.displayName}
           className={styles.avatar}
+          referrerPolicy="no-referrer"
           onError={(e) => {
             (e.target as HTMLImageElement).src = '/default-avatar.svg';
           }}
@@ -87,7 +88,7 @@ const Profile: React.FC = () => {
           <Link to="/edit-profile">
             <Button variant="outline">Edit Profile</Button>
           </Link>
-          <Button variant="ghost" onClick={handleLogout}>Logout</Button>
+          <Button variant="danger" onClick={handleLogout}>Logout</Button>
         </div>
       </div>
 

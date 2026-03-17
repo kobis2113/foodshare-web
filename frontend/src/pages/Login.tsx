@@ -6,7 +6,7 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Button, Input } from '../components/common';
+import { Button, Input, PasswordInput } from '../components/common';
 import styles from './Auth.module.css';
 
 const loginSchema = z.object({
@@ -62,9 +62,8 @@ const Login: React.FC = () => {
             error={errors.email?.message}
             {...register('email')}
           />
-          <Input
+          <PasswordInput
             label="Password"
-            type="password"
             placeholder="Enter your password"
             error={errors.password?.message}
             {...register('password')}
