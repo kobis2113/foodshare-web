@@ -3,19 +3,8 @@ import type { NutritionResponse, AIAnalysisResponse, AISuggestionResponse, Post 
 
 export interface SmartSearchResponse {
   posts: Post[];
-  searchCriteria: {
-    keywords: string[];
-    nutritionFilters?: {
-      highProtein?: boolean;
-      lowCalorie?: boolean;
-      lowCarb?: boolean;
-      lowFat?: boolean;
-    };
-    mealType?: string;
-    healthFocus?: string;
-    searchExplanation?: string;
-    fallback?: boolean;
-  };
+  query: string;
+  searchExplanation: string;
   aiInsights: string | null;
   totalResults: number;
   source: 'gemini' | 'fallback';
