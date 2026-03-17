@@ -49,10 +49,10 @@ const Home: React.FC = () => {
       setPosts(response.posts);
       setHasMore(false); // AI search doesn't paginate
       setAiInsights(response.aiInsights);
-      setSearchExplanation(response.searchCriteria.searchExplanation || null);
+      setSearchExplanation(response.searchExplanation || null);
 
       // Check if AI fell back to regular search due to quota
-      if (response.source === 'fallback' || response.searchCriteria.fallback) {
+      if (response.source === 'fallback') {
         setAiQuotaWarning('AI quota exceeded. Using basic search. Please wait ~1 minute and try again.');
       } else {
         setAiQuotaWarning(null);
