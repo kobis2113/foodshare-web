@@ -3,7 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/layout';
 import { Loader } from './components/common';
-import { Home, Login, Register, CreatePost, MyPosts, Profile, EditProfile } from './pages';
+import { Home, Login, Register, CreatePost, MyPosts, Profile, EditProfile, PostDetail, EditPost } from './pages';
 import './styles/globals.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -54,8 +54,8 @@ function AppContent() {
           <Route path="/my-posts" element={<ProtectedRoute><MyPosts /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-          <Route path="/post/:id" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Post Detail - Coming Soon</div></ProtectedRoute>} />
-          <Route path="/edit/:id" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Edit Post - Coming Soon</div></ProtectedRoute>} />
+          <Route path="/post/:id" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
+          <Route path="/edit/:id" element={<ProtectedRoute><EditPost /></ProtectedRoute>} />
 
           <Route path="*" element={<div style={{ padding: '40px', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
         </Routes>
