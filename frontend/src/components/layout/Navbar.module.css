@@ -1,0 +1,142 @@
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.logoIcon {
+  font-size: 28px;
+}
+
+.logoText {
+  color: var(--text-primary);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.navLink {
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.navLink:hover {
+  color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+.registerBtn {
+  background-color: var(--primary);
+  color: var(--white);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--transition-fast);
+}
+
+.registerBtn:hover {
+  background-color: var(--primary-dark);
+  color: var(--white);
+}
+
+.profileMenu {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.profileLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 4px 12px 4px 4px;
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-fast);
+}
+
+.profileLink:hover {
+  background-color: var(--gray-100);
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--gray-200);
+}
+
+.userName {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.logoutBtn {
+  background: none;
+  border: 1px solid var(--gray-300);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.logoutBtn:hover {
+  border-color: var(--error);
+  color: var(--error);
+  background-color: var(--error-light);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .navLinks {
+    gap: var(--spacing-sm);
+  }
+
+  .navLink {
+    padding: 6px 8px;
+    font-size: var(--text-sm);
+  }
+
+  .userName {
+    display: none;
+  }
+
+  .registerBtn {
+    padding: 8px 12px;
+    font-size: var(--text-sm);
+  }
+}
