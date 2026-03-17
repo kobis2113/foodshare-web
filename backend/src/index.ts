@@ -23,7 +23,7 @@ import nutritionRoutes from './routes/shared/nutrition';
 import aiRoutes from './routes/shared/ai';
 
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT: number = Number(process.env.PORT) || 3000;
 
 app.use(helmet());
 app.use(cors());
