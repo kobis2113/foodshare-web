@@ -3,7 +3,7 @@ import { body, query, validationResult } from 'express-validator';
 import { combinedAuth } from '../../middleware/firebaseAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
 import { Post } from '../../models/Post';
-import { RATE_LIMIT, VALIDATION, NUTRITION_THRESHOLDS, NUTRITION_FILTERS, USDA_NUTRIENT_IDS, PAGINATION, CALORIE_RANGE } from '../../constants';
+import { RATE_LIMIT, VALIDATION, NUTRITION_THRESHOLDS, USDA_NUTRIENT_IDS, PAGINATION } from '../../constants';
 
 const router = Router();
 const authMiddleware = combinedAuth as RequestHandler;
@@ -58,7 +58,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,7 +66,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024
+          maxOutputTokens: 4096
         }
       })
     }
@@ -96,7 +96,7 @@ async function callGeminiVisionAPI(prompt: string, imageBase64: string, mimeType
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -114,7 +114,7 @@ async function callGeminiVisionAPI(prompt: string, imageBase64: string, mimeType
         }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1024
+          maxOutputTokens: 2048
         }
       })
     }
@@ -178,21 +178,11 @@ async function fetchNutritionFallback(query: string): Promise<{
       const food = data.foods[0];
       const nutrients = food.foodNutrients || [];
 
-      console.log('USDA food match:', food.description);
-      console.log('USDA nutrients count:', nutrients.length);
-
       // USDA nutrient IDs
       const caloriesNutrient = nutrients.find(n => n.nutrientId === USDA_NUTRIENT_IDS.ENERGY);
       const proteinNutrient = nutrients.find(n => n.nutrientId === USDA_NUTRIENT_IDS.PROTEIN);
       const carbsNutrient = nutrients.find(n => n.nutrientId === USDA_NUTRIENT_IDS.CARBS);
       const fatNutrient = nutrients.find(n => n.nutrientId === USDA_NUTRIENT_IDS.FAT);
-
-      console.log('Found nutrients:', {
-        calories: caloriesNutrient,
-        protein: proteinNutrient,
-        carbs: carbsNutrient,
-        fat: fatNutrient
-      });
 
       const calories = caloriesNutrient?.value || 0;
       const protein = proteinNutrient?.value || 0;
@@ -536,13 +526,27 @@ Return ONLY the JSON object, no other text.`;
       try {
         const aiResponse = await callGeminiVisionAPI(prompt, imageBase64, mimeType);
 
-        // Parse AI response
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
+        // Parse AI response - handle markdown code blocks and raw JSON
+        let jsonString: string | null = null;
+
+        // Try to extract from markdown code block first
+        const codeBlockMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (codeBlockMatch) {
+          jsonString = codeBlockMatch[1].trim();
+        } else {
+          // Fall back to raw JSON extraction
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonString = jsonMatch[0];
+          }
+        }
+
+        if (!jsonString) {
+          console.error('AI response (no JSON found):', aiResponse.substring(0, 500));
           throw new Error('Invalid AI response format');
         }
 
-        const analysis = JSON.parse(jsonMatch[0]);
+        const analysis = JSON.parse(jsonString);
 
         // Validate the response has required fields
         if (typeof analysis.isFood !== 'boolean') {
@@ -560,7 +564,6 @@ Return ONLY the JSON object, no other text.`;
 
         // Fallback to USDA FoodData Central
         const fallbackData = await fetchNutritionFallback(mealName);
-        console.log('USDA fallback response:', JSON.stringify(fallbackData));
 
         res.json({
           isFood: !fallbackData.error, // If error, we couldn't verify it's food
@@ -632,99 +635,101 @@ router.get(
 
       const userQuery = req.query.q as string;
 
-      const interpretPrompt = `You are a food search assistant. Analyze this search query and extract search criteria.
-Query: "${userQuery}"
+      // First, fetch all posts from the database
+      const allPosts = await Post.find()
+        .sort({ createdAt: -1 })
+        .limit(50) // Limit to last 50 posts for AI processing
+        .populate('author', 'displayName profileImage')
+        .lean();
 
-Respond in JSON format only:
-{
-  "keywords": ["keyword1", "keyword2"],
-  "nutritionFilters": {
-    "highProtein": true/false,
-    "lowCalorie": true/false,
-    "lowCarb": true/false,
-    "lowFat": true/false
-  },
-  "mealType": "breakfast/lunch/dinner/snack/any",
-  "healthFocus": "description of what user is looking for",
-  "searchExplanation": "brief explanation of how you interpreted the query"
-}
+      if (allPosts.length === 0) {
+        res.json({
+          posts: [],
+          query: userQuery,
+          searchExplanation: 'No posts available yet.',
+          aiInsights: null
+        });
+        return;
+      }
 
-Return ONLY the JSON object, no other text.`;
+      // Create a summary of posts for AI to analyze
+      const postSummaries = allPosts.map((p, index) => ({
+        id: index,
+        mealName: p.mealName,
+        description: p.description || '',
+        calories: p.nutrition?.calories || 0,
+        protein: p.nutrition?.protein || 0,
+        carbs: p.nutrition?.carbs || 0,
+        fat: p.nutrition?.fat || 0
+      }));
 
-      const interpretResponse = await callGeminiAPI(interpretPrompt);
+      // Ask AI to match posts to the user's query
+      const matchPrompt = `Food search. Query: "${userQuery}"
 
-      // Parse AI interpretation
-      let searchCriteria;
+Meals:
+${JSON.stringify(postSummaries)}
+
+Return matching meal IDs. Consider name, category, nutrition, health concepts.
+JSON only: {"matchingIds":[0,2,5],"searchExplanation":"short reason"}
+Empty array if none match.`;
+
+      let matchingPostIds: number[] = [];
+      let searchExplanation = '';
+
       try {
-        const jsonMatch = interpretResponse.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error('Invalid format');
-        searchCriteria = JSON.parse(jsonMatch[0]);
-      } catch {
-        // Fallback to basic text search if AI parsing fails
-        searchCriteria = {
-          keywords: userQuery.split(' ').filter(w => w.length > 2),
-          nutritionFilters: {},
-          mealType: 'any',
-          healthFocus: userQuery,
-          searchExplanation: 'Using basic keyword search'
-        };
+        const matchResponse = await callGeminiAPI(matchPrompt);
+
+        // Parse AI response
+        let jsonString: string | null = null;
+        const codeBlockMatch = matchResponse.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (codeBlockMatch) {
+          jsonString = codeBlockMatch[1].trim();
+        } else {
+          const jsonMatch = matchResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) jsonString = jsonMatch[0];
+        }
+
+        if (jsonString) {
+          const parsed = JSON.parse(jsonString);
+          matchingPostIds = parsed.matchingIds || [];
+          searchExplanation = parsed.searchExplanation || '';
+        } else {
+          console.error('AI smart search - no JSON found in response:', matchResponse.substring(0, 500));
+        }
+      } catch (error: any) {
+        console.error('AI matching failed:', error.message);
+        // Fallback to basic text search
+        const lowerQuery = userQuery.toLowerCase();
+        matchingPostIds = postSummaries
+          .filter(p =>
+            p.mealName.toLowerCase().includes(lowerQuery) ||
+            p.description.toLowerCase().includes(lowerQuery)
+          )
+          .map(p => p.id);
+        searchExplanation = 'Using basic keyword search';
       }
 
-      const mongoQuery: any = {};
-
-      // Text search with keywords
-      if (searchCriteria.keywords && searchCriteria.keywords.length > 0) {
-        mongoQuery.$text = { $search: searchCriteria.keywords.join(' ') };
-      }
-
-      // Nutrition filters
-      if (searchCriteria.nutritionFilters) {
-        if (searchCriteria.nutritionFilters.highProtein) {
-          mongoQuery['nutrition.protein'] = { $gte: NUTRITION_FILTERS.HIGH_PROTEIN_MIN };
-        }
-        if (searchCriteria.nutritionFilters.lowCalorie) {
-          mongoQuery['nutrition.calories'] = { $lte: NUTRITION_FILTERS.LOW_CALORIE_MAX };
-        }
-        if (searchCriteria.nutritionFilters.lowCarb) {
-          mongoQuery['nutrition.carbs'] = { $lte: NUTRITION_FILTERS.LOW_CARB_MAX };
-        }
-        if (searchCriteria.nutritionFilters.lowFat) {
-          mongoQuery['nutrition.fat'] = { $lte: NUTRITION_FILTERS.LOW_FAT_MAX };
-        }
-      }
-
-      let posts;
-      if (Object.keys(mongoQuery).length > 0) {
-        posts = await Post.find(mongoQuery)
-          .sort({ createdAt: -1 })
-          .limit(PAGINATION.SEARCH_LIMIT)
-          .populate('author', 'displayName profileImage')
-          .lean();
-      } else {
-        // Fallback: get recent posts if no specific criteria
-        posts = await Post.find()
-          .sort({ createdAt: -1 })
-          .limit(PAGINATION.SEARCH_LIMIT)
-          .populate('author', 'displayName profileImage')
-          .lean();
-      }
+      // Get the matching posts
+      const matchingPosts = matchingPostIds
+        .filter(id => id >= 0 && id < allPosts.length)
+        .map(id => allPosts[id]);
 
       // Add isLiked field
-      const postsWithLikeStatus = posts.map(post => ({
+      const postsWithLikeStatus = matchingPosts.map(post => ({
         ...post,
         isLiked: post.likes.some((likeId: any) => likeId.toString() === req.userId)
       }));
 
       let aiInsights = null;
       if (postsWithLikeStatus.length > 0) {
-        const postSummaries = postsWithLikeStatus.slice(0, 5).map(p => ({
+        const topPostSummaries = postsWithLikeStatus.slice(0, 5).map(p => ({
           name: p.mealName,
           description: p.description || '',
           nutrition: p.nutrition
         }));
 
-        const insightsPrompt = `Based on the search "${userQuery}", here are the top meals found:
-${JSON.stringify(postSummaries, null, 2)}
+        const insightsPrompt = `Based on the search "${userQuery}", here are the matching meals:
+${JSON.stringify(topPostSummaries, null, 2)}
 
 Provide a brief helpful response (2-3 sentences) explaining how these results match the search and any nutrition insights. Be concise and friendly.`;
 
@@ -737,7 +742,8 @@ Provide a brief helpful response (2-3 sentences) explaining how these results ma
 
       res.json({
         posts: postsWithLikeStatus,
-        searchCriteria,
+        query: userQuery,
+        searchExplanation,
         aiInsights,
         totalResults: postsWithLikeStatus.length,
         source: 'gemini'
