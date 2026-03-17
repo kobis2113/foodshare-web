@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Button, Input } from '../components/common';
 import styles from './Auth.module.css';
@@ -46,8 +47,13 @@ const Register: React.FC = () => {
       toast.success('Account created successfully!');
       navigate('/');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Registration failed';
-      toast.error(message);
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (axios.isAxiosError(error) && error.response?.data?.errors) {
+        toast.error(error.response.data.errors[0]?.msg || 'Validation error');
+      } else {
+        toast.error('Registration failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +75,6 @@ const Register: React.FC = () => {
             error={errors.displayName?.message}
             {...register('displayName')}
           />
-
           <Input
             label="Email"
             type="email"
@@ -77,7 +82,6 @@ const Register: React.FC = () => {
             error={errors.email?.message}
             {...register('email')}
           />
-
           <Input
             label="Password"
             type="password"
@@ -85,7 +89,6 @@ const Register: React.FC = () => {
             error={errors.password?.message}
             {...register('password')}
           />
-
           <Input
             label="Confirm Password"
             type="password"
@@ -93,7 +96,6 @@ const Register: React.FC = () => {
             error={errors.confirmPassword?.message}
             {...register('confirmPassword')}
           />
-
           <Button type="submit" fullWidth isLoading={isLoading}>
             Create Account
           </Button>
