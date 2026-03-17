@@ -3,10 +3,9 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/layout';
 import { Loader } from './components/common';
-import { Home, Login, Register } from './pages';
+import { Home, Login, Register, CreatePost, MyPosts } from './pages';
 import './styles/globals.css';
 
-// Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -21,7 +20,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Public Route wrapper (redirects authenticated users)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -48,97 +46,26 @@ function AppContent() {
       <Navbar />
       <main>
         <Routes>
-          {/* Public routes */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            }
-          />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
-          {/* Protected routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+          <Route path="/my-posts" element={<ProtectedRoute><MyPosts /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Profile - Coming Soon</div></ProtectedRoute>} />
+          <Route path="/post/:id" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Post Detail - Coming Soon</div></ProtectedRoute>} />
+          <Route path="/edit/:id" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Edit Post - Coming Soon</div></ProtectedRoute>} />
 
-          {/* Placeholder routes - will be implemented */}
-          <Route
-            path="/create"
-            element={
-              <ProtectedRoute>
-                <div style={{ padding: '40px', textAlign: 'center' }}>Create Post - Coming Soon</div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-posts"
-            element={
-              <ProtectedRoute>
-                <div style={{ padding: '40px', textAlign: 'center' }}>My Posts - Coming Soon</div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <div style={{ padding: '40px', textAlign: 'center' }}>Profile - Coming Soon</div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/post/:id"
-            element={
-              <ProtectedRoute>
-                <div style={{ padding: '40px', textAlign: 'center' }}>Post Detail - Coming Soon</div>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* 404 */}
-          <Route
-            path="*"
-            element={
-              <div style={{ padding: '40px', textAlign: 'center' }}>
-                <h1>404 - Page Not Found</h1>
-              </div>
-            }
-          />
+          <Route path="*" element={<div style={{ padding: '40px', textAlign: 'center' }}><h1>404 - Page Not Found</h1></div>} />
         </Routes>
       </main>
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
-          style: {
-            background: '#333',
-            color: '#fff',
-          },
-          success: {
-            style: {
-              background: '#4CAF50',
-            },
-          },
-          error: {
-            style: {
-              background: '#F44336',
-            },
-          },
+          style: { background: '#333', color: '#fff' },
+          success: { style: { background: '#4CAF50' } },
+          error: { style: { background: '#F44336' } },
         }}
       />
     </>
