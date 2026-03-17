@@ -1,8 +1,19 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
-// Load .env from backend directory (works when run from project root via PM2 or from backend/)
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+// Load .env from backend directory (works when run via PM2 or from backend/)
+const envPaths = [
+  path.resolve(__dirname, '..', '.env'),
+  path.resolve(process.cwd(), '.env'),
+];
+const envPath = envPaths.find((p) => fs.existsSync(p));
+if (envPath) {
+  dotenv.config({ path: envPath });
+} else {
+  console.error('No .env file found. Tried:', envPaths.join(', '));
+  console.error('   Create backend/.env (e.g. copy from .env.example) on the server.');
+}
 
 import express, { Application } from 'express';
 import cors from 'cors';
