@@ -88,3 +88,37 @@
   outline: none;
   border-color: var(--primary);
 }
+
+.inputWithButton {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: flex-end;
+}
+
+.inputWithButton > div:first-child {
+  flex: 1;
+}
+
+.tipsSection {
+  background-color: var(--success-light, #E8F5E9);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.tipsSection h4 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--success, #4CAF50);
+  margin-bottom: var(--spacing-sm);
+}
+
+.tipsSection ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.tipsSection li {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}

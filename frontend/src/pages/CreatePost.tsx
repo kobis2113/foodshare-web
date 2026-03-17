@@ -2,19 +2,19 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import postService from '../services/postService';
-import { Button, Input } from '../components/common';
+import aiService from '../services/aiService';
+import { Button, Input, Loader } from '../components/common';
 import styles from './CreatePost.module.css';
 
 const CreatePost: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-  });
+  const [formData, setFormData] = useState({ title: '', description: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [nutritionTips, setNutritionTips] = useState<string[]>([]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,6 +25,27 @@ const CreatePost: React.FC = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGetTips = async () => {
+    if (!formData.title.trim()) {
+      toast.error('Enter a meal name first');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const response = await aiService.getNutritionInfo(formData.title);
+      const tips = response.healthTips || (response.tips ? [response.tips] : []);
+      setNutritionTips(tips);
+      if (tips.length === 0) {
+        toast('No tips available for this meal');
+      }
+    } catch {
+      toast.error('Failed to get nutrition tips');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -64,10 +85,7 @@ const CreatePost: React.FC = () => {
         <h1 className={styles.title}>Share a Meal</h1>
 
         <form onSubmit={handleSubmit} className={styles.form}>
-          <div
-            className={styles.imageUpload}
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <div className={styles.imageUpload} onClick={() => fileInputRef.current?.click()}>
             {imagePreview ? (
               <img src={imagePreview} alt="Preview" className={styles.preview} />
             ) : (
@@ -89,13 +107,29 @@ const CreatePost: React.FC = () => {
             />
           </div>
 
-          <Input
-            label="Meal Name"
-            type="text"
-            placeholder="What did you make?"
-            value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          />
+          <div className={styles.inputWithButton}>
+            <Input
+              label="Meal Name"
+              type="text"
+              placeholder="What did you make?"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={handleGetTips} disabled={isAnalyzing}>
+              {isAnalyzing ? <Loader /> : 'Get Tips'}
+            </Button>
+          </div>
+
+          {nutritionTips.length > 0 && (
+            <div className={styles.tipsSection}>
+              <h4>Nutrition Tips</h4>
+              <ul>
+                {nutritionTips.map((tip, index) => (
+                  <li key={index}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className={styles.textareaWrapper}>
             <label className={styles.label}>Description</label>
