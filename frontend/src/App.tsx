@@ -3,7 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/layout';
 import { Loader } from './components/common';
-import { Home, Login, Register, CreatePost, MyPosts } from './pages';
+import { Home, Login, Register, CreatePost, MyPosts, Profile, EditProfile } from './pages';
 import './styles/globals.css';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -52,7 +52,8 @@ function AppContent() {
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
           <Route path="/my-posts" element={<ProtectedRoute><MyPosts /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Profile - Coming Soon</div></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
           <Route path="/post/:id" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Post Detail - Coming Soon</div></ProtectedRoute>} />
           <Route path="/edit/:id" element={<ProtectedRoute><div style={{ padding: '40px', textAlign: 'center' }}>Edit Post - Coming Soon</div></ProtectedRoute>} />
 
