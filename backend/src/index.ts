@@ -2,14 +2,17 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Load .env from backend directory (works when run via PM2 or from backend/)
+// Load .env: prefer process.cwd() (PM2 cwd is backend/), then __dirname/..
 const envPaths = [
-  path.resolve(__dirname, '..', '.env'),
   path.resolve(process.cwd(), '.env'),
+  path.resolve(__dirname, '..', '.env'),
 ];
 const envPath = envPaths.find((p) => fs.existsSync(p));
 if (envPath) {
-  dotenv.config({ path: envPath });
+  const result = dotenv.config({ path: envPath });
+  if (result.error) console.error('dotenv error:', result.error.message);
+  else if (process.env.MONGODB_URI) console.log('Loaded .env from', envPath, '| MONGODB_URI set');
+  else console.warn('Loaded .env from', envPath, '| MONGODB_URI missing in .env');
 } else {
   console.error('No .env file found. Tried:', envPaths.join(', '));
   console.error('   Create backend/.env (e.g. copy from .env.example) on the server.');

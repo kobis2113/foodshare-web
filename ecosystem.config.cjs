@@ -17,7 +17,7 @@ module.exports = {
       args: '--respawn --transpile-only src/index.ts',
       interpreter: 'node',
       env: {
-        PORT: 3002,
+        PORT: 3000,
       },
     },
   ],
