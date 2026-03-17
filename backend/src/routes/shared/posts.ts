@@ -5,6 +5,7 @@ import { Comment } from '../../models/Comment';
 import { combinedAuth } from '../../middleware/firebaseAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
 import { uploadImage } from '../../middleware/upload';
+import { PAGINATION, VALIDATION } from '../../constants';
 
 const router = Router();
 
@@ -45,7 +46,7 @@ router.get(
   (async (req: AuthRequest, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || PAGINATION.DEFAULT_LIMIT;
       const skip = (page - 1) * limit;
 
       const posts = await Post.find()
@@ -122,7 +123,7 @@ router.get('/search', authMiddleware, (async (req: AuthRequest, res: Response) =
     }
 
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const limit = parseInt(req.query.limit as string) || PAGINATION.DEFAULT_LIMIT;
     const skip = (page - 1) * limit;
 
     const posts = await Post.find(
@@ -240,8 +241,8 @@ router.post(
   authMiddleware,
   uploadImage.single('image'),
   [
-    body('mealName').trim().isLength({ min: 1, max: 100 }),
-    body('description').optional().trim().isLength({ max: 500 })
+    body('mealName').trim().isLength({ min: VALIDATION.MEAL_NAME.MIN_LENGTH, max: VALIDATION.MEAL_NAME.MAX_LENGTH }),
+    body('description').optional().trim().isLength({ max: VALIDATION.DESCRIPTION.MAX_LENGTH })
   ],
   (async (req: AuthRequest, res: Response) => {
     try {
@@ -561,7 +562,7 @@ router.get('/:id/comments', authMiddleware, (async (req: AuthRequest, res: Respo
 router.post(
   '/:id/comments',
   authMiddleware,
-  [body('text').trim().isLength({ min: 1, max: 500 })],
+  [body('text').trim().isLength({ min: VALIDATION.COMMENT.MIN_LENGTH, max: VALIDATION.COMMENT.MAX_LENGTH })],
   (async (req: AuthRequest, res: Response) => {
     try {
       const errors = validationResult(req);
