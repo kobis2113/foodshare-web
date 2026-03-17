@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Button, Input } from '../components/common';
 import styles from './Auth.module.css';
@@ -32,11 +33,14 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       await login(data);
-      toast.success('Welcome back!');
+      toast.success('Login successful!');
       navigate('/');
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Login failed';
-      toast.error(message);
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +50,7 @@ const Login: React.FC = () => {
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Welcome Back</h1>
+          <h1 className={styles.title}>Sign In</h1>
           <p className={styles.subtitle}>Sign in to continue to FoodShare</p>
         </div>
 
@@ -58,7 +62,6 @@ const Login: React.FC = () => {
             error={errors.email?.message}
             {...register('email')}
           />
-
           <Input
             label="Password"
             type="password"
@@ -66,7 +69,6 @@ const Login: React.FC = () => {
             error={errors.password?.message}
             {...register('password')}
           />
-
           <Button type="submit" fullWidth isLoading={isLoading}>
             Sign In
           </Button>
