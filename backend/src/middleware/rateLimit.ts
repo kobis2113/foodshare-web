@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { RATE_LIMIT } from '../constants';
 
 interface RateLimitStore {
   [key: string]: {
@@ -46,15 +47,15 @@ export const createRateLimiter = (options: RateLimitOptions) => {
 };
 
 export const authLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many login attempts, please try again after 15 minutes'
+  windowMs: RATE_LIMIT.LOGIN.WINDOW_MS,
+  max: RATE_LIMIT.LOGIN.MAX_REQUESTS,
+  message: RATE_LIMIT.LOGIN.MESSAGE
 });
 
 export const apiLimiter = createRateLimiter({
-  windowMs: 60 * 1000,
-  max: 500,
-  message: 'Too many requests, please slow down'
+  windowMs: RATE_LIMIT.GENERAL.WINDOW_MS,
+  max: RATE_LIMIT.GENERAL.MAX_REQUESTS,
+  message: RATE_LIMIT.GENERAL.MESSAGE
 });
 
 setInterval(() => {

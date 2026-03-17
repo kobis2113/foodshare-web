@@ -7,6 +7,7 @@ import postService from '../services/postService';
 import aiService, { type SmartSearchResponse } from '../services/aiService';
 import { PostCard } from '../components/posts';
 import { Loader, Input, Button } from '../components/common';
+import { POSTS_PER_PAGE } from '../constants';
 import styles from './Home.module.css';
 
 const Home: React.FC = () => {
@@ -25,7 +26,7 @@ const Home: React.FC = () => {
     try {
       const response = query
         ? await postService.searchPosts(query, pageNum)
-        : await postService.getPosts(pageNum, 10);
+        : await postService.getPosts(pageNum, POSTS_PER_PAGE);
       if (pageNum === 1) {
         setPosts(response.posts);
       } else {

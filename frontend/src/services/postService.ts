@@ -1,9 +1,10 @@
 import api from './api';
 import type { Post, PostsResponse, Comment, LikeResponse } from '../types';
+import { POSTS_PER_PAGE } from '../constants';
 
 export const postService = {
   // Get all posts with pagination
-  getPosts: async (page: number = 1, limit: number = 10): Promise<PostsResponse> => {
+  getPosts: async (page: number = 1, limit: number = POSTS_PER_PAGE): Promise<PostsResponse> => {
     const response = await api.get<PostsResponse>(`/api/posts?page=${page}&limit=${limit}`);
     return response.data;
   },
