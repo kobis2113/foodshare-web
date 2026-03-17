@@ -56,8 +56,9 @@ const Home: React.FC = () => {
       } else {
         setAiQuotaWarning(null);
       }
-    } catch (error: any) {
-      if (error.response?.status === 429) {
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError.response?.status === 429) {
         toast.error('AI search rate limit reached. Try regular search.');
         setAiQuotaWarning('Rate limit reached. Please wait a moment before trying AI search again.');
         setUseAISearch(false);

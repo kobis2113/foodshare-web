@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User, LoginCredentials, RegisterCredentials } from '../types';
 import authService from '../services/authService';
 
@@ -23,7 +23,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user is logged in on mount
+  const refreshUser = useCallback(async (): Promise<void> => {
+    try {
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  }, []);
+
   useEffect(() => {
     const initAuth = async () => {
       if (authService.isAuthenticated()) {
@@ -42,19 +50,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initAuth();
   }, []);
 
-  // Handle OAuth callback
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const accessToken = params.get('accessToken');
-    const refreshToken = params.get('refreshToken');
+    const handleOAuthCallback = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const accessToken = params.get('accessToken');
+      const refreshToken = params.get('refreshToken');
 
-    if (accessToken && refreshToken) {
-      authService.saveTokens(accessToken, refreshToken);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      // Fetch user data
-      refreshUser();
-    }
+      if (accessToken && refreshToken) {
+        authService.saveTokens(accessToken, refreshToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        const userData = await authService.getCurrentUser();
+        setUser(userData);
+      }
+    };
+
+    handleOAuthCallback();
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<void> => {
@@ -78,15 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     authService.googleLogin();
   };
 
-  const refreshUser = async (): Promise<void> => {
-    try {
-      const userData = await authService.getCurrentUser();
-      setUser(userData);
-    } catch (error) {
-      console.error('Failed to refresh user:', error);
-    }
-  };
-
   const value: AuthContextType = {
     user,
     isLoading,
@@ -101,6 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {

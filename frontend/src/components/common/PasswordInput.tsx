@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useState, useId } from 'react';
 import styles from './Input.module.css';
 
 interface PasswordInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
@@ -10,7 +10,8 @@ interface PasswordInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
 const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ label, error, helperText, className = '', id, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
     const toggleVisibility = () => setShowPassword(!showPassword);
 
