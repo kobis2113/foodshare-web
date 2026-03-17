@@ -1,11 +1,13 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+
+// Load .env from backend directory (works when run from project root via PM2 or from backend/)
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import passport from 'passport';
 import swaggerSpec from './config/swagger';
