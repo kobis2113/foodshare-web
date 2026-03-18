@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 export const connectDB = async (): Promise<void> => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/foodshare';
+    if (!process.env.MONGODB_URI) {
+      console.warn('MONGODB_URI not set in .env, using default localhost:27017');
+    }
 
     await mongoose.connect(mongoURI);
 
