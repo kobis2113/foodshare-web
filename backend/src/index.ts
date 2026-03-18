@@ -32,7 +32,7 @@ import { apiLimiter, authLimiter } from './middleware/rateLimit';
 import './config/passport';
 
 import webAuthRoutes from './routes/web/auth';
-import mobileAuthRoutes from './routes/mobile/auth';
+// FIREBASE REMOVED: import mobileAuthRoutes from './routes/mobile/auth';
 import sharedPostRoutes from './routes/shared/posts';
 import sharedUserRoutes from './routes/shared/users';
 import nutritionRoutes from './routes/shared/nutrition';
@@ -55,7 +55,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/web/auth', authLimiter, webAuthRoutes);
-app.use('/api/mobile/auth', authLimiter, mobileAuthRoutes);
+// FIREBASE REMOVED: app.use('/api/mobile/auth', authLimiter, mobileAuthRoutes);
 
 app.use('/api/posts', apiLimiter, sharedPostRoutes);
 app.use('/api/users', apiLimiter, sharedUserRoutes);
