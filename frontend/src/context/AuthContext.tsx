@@ -80,8 +80,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async (): Promise<void> => {
-    await authService.logout();
-    setUser(null);
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout API failed:', error);
+    } finally {
+      // Always clear user state, even if API fails
+      setUser(null);
+    }
   };
 
   const googleLogin = (): void => {
