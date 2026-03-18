@@ -53,16 +53,16 @@ export const AUTH = {
 export const RATE_LIMIT = {
   LOGIN: {
     WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    MAX_REQUESTS: 100,
+    MAX_REQUESTS: 500,
     MESSAGE: 'Too many login attempts, please try again after 15 minutes',
   },
   GENERAL: {
     WINDOW_MS: 60 * 1000, // 1 minute
-    MAX_REQUESTS: 500,
+    MAX_REQUESTS: 2000,
     MESSAGE: 'Too many requests, please slow down',
   },
   AI: {
-    REQUESTS_PER_MINUTE: 20,
+    REQUESTS_PER_MINUTE: 50,
     WINDOW_MS: 60 * 1000, // 1 minute
   },
 } as const;
