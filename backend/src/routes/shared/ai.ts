@@ -1,12 +1,12 @@
 import { Router, Response, RequestHandler } from 'express';
 import { body, query, validationResult } from 'express-validator';
-import { combinedAuth } from '../../middleware/firebaseAuth';
+import { jwtAuth } from '../../middleware/jwtAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
 import { Post } from '../../models/Post';
 import { RATE_LIMIT, VALIDATION, NUTRITION_THRESHOLDS, USDA_NUTRIENT_IDS, PAGINATION } from '../../constants';
 
 const router = Router();
-const authMiddleware = combinedAuth as RequestHandler;
+const authMiddleware = jwtAuth as RequestHandler;
 
 // AI-specific rate limiting (stricter than general API)
 const aiRequestCounts = new Map<string, { count: number; resetTime: number }>();

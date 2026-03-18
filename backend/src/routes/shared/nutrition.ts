@@ -1,6 +1,6 @@
 import { Router, Response, RequestHandler } from 'express';
 import { query, validationResult } from 'express-validator';
-import { combinedAuth } from '../../middleware/firebaseAuth';
+import { jwtAuth } from '../../middleware/jwtAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
 import { USDA_NUTRIENT_IDS, NUTRITION_THRESHOLDS, VALIDATION } from '../../constants';
 
@@ -45,7 +45,7 @@ const router = Router();
  */
 router.get(
   '/',
-  combinedAuth as RequestHandler,
+  jwtAuth as RequestHandler,
   [query('query').trim().isLength({ min: 1, max: 200 })],
   (async (req: AuthRequest, res: Response) => {
     try {

@@ -2,12 +2,12 @@ import { Router, Response, RequestHandler } from 'express';
 import { body, validationResult } from 'express-validator';
 import { User } from '../../models/User';
 import { Post } from '../../models/Post';
-import { combinedAuth } from '../../middleware/firebaseAuth';
+import { jwtAuth } from '../../middleware/jwtAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
 import { uploadImage } from '../../middleware/upload';
 
 const router = Router();
-const authMiddleware = combinedAuth as RequestHandler;
+const authMiddleware = jwtAuth as RequestHandler;
 
 /**
  * @swagger

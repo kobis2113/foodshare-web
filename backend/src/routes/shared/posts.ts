@@ -2,7 +2,7 @@ import { Router, Response, RequestHandler } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { Post } from '../../models/Post';
 import { Comment } from '../../models/Comment';
-import { combinedAuth } from '../../middleware/firebaseAuth';
+import { jwtAuth } from '../../middleware/jwtAuth';
 import { AuthRequest } from '../../middleware/jwtAuth';
 import { uploadImage } from '../../middleware/upload';
 import { PAGINATION, VALIDATION } from '../../constants';
@@ -10,7 +10,7 @@ import { PAGINATION, VALIDATION } from '../../constants';
 const router = Router();
 
 // Type helper to avoid repetitive casting
-const authMiddleware = combinedAuth as RequestHandler;
+const authMiddleware = jwtAuth as RequestHandler;
 
 /**
  * @swagger
