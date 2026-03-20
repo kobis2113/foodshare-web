@@ -53,7 +53,7 @@ router.get(
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate('author', 'displayName profileImage')
+        .populate('author', '_id displayName profileImage')
         .lean();
 
       // Add isLiked field for current user
@@ -133,7 +133,7 @@ router.get('/search', authMiddleware, (async (req: AuthRequest, res: Response) =
       .sort({ score: { $meta: 'textScore' }, createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('author', 'displayName profileImage')
+      .populate('author', '_id displayName profileImage')
       .lean();
 
     const postsWithLikeStatus = posts.map(post => ({
@@ -186,7 +186,7 @@ router.get('/search', authMiddleware, (async (req: AuthRequest, res: Response) =
 router.get('/:id', authMiddleware, (async (req: AuthRequest, res: Response) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate('author', 'displayName profileImage')
+      .populate('author', '_id displayName profileImage')
       .lean();
 
     if (!post) {
@@ -267,7 +267,7 @@ router.post(
         nutrition: nutrition ? JSON.parse(nutrition) : undefined
       });
 
-      await post.populate('author', 'displayName profileImage');
+      await post.populate('author', '_id displayName profileImage');
 
       res.status(201).json({
         message: 'Post created successfully',
@@ -329,7 +329,7 @@ router.put(
       if (nutrition) post.nutrition = JSON.parse(nutrition);
 
       await post.save();
-      await post.populate('author', 'displayName profileImage');
+      await post.populate('author', '_id displayName profileImage');
 
       res.json({
         message: 'Post updated successfully',
@@ -519,7 +519,7 @@ router.get('/:id/comments', authMiddleware, (async (req: AuthRequest, res: Respo
   try {
     const comments = await Comment.find({ post: req.params.id })
       .sort({ createdAt: -1 })
-      .populate('author', 'displayName profileImage')
+      .populate('author', '_id displayName profileImage')
       .lean();
 
     res.json({ comments });
@@ -586,7 +586,7 @@ router.post(
       post.commentsCount += 1;
       await post.save();
 
-      await comment.populate('author', 'displayName profileImage');
+      await comment.populate('author', '_id displayName profileImage');
 
       res.status(201).json({
         message: 'Comment added successfully',
@@ -594,6 +594,84 @@ router.post(
       });
     } catch (error) {
       console.error('Add comment error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }) as RequestHandler
+);
+
+/**
+ * @swagger
+ * /api/posts/{postId}/comments/{commentId}:
+ *   put:
+ *     summary: Update a comment (owner only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *       - firebaseAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - text
+ *             properties:
+ *               text:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Comment updated
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Comment not found
+ */
+router.put(
+  '/:postId/comments/:commentId',
+  authMiddleware,
+  [body('text').trim().isLength({ min: VALIDATION.COMMENT.MIN_LENGTH, max: VALIDATION.COMMENT.MAX_LENGTH })],
+  (async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const comment = await Comment.findById(req.params.commentId);
+
+      if (!comment) {
+        res.status(404).json({ message: 'Comment not found' });
+        return;
+      }
+
+      if (comment.author.toString() !== req.userId) {
+        res.status(403).json({ message: 'Not authorized' });
+        return;
+      }
+
+      comment.text = req.body.text;
+      await comment.save();
+      await comment.populate('author', '_id displayName profileImage');
+
+      res.json({
+        message: 'Comment updated successfully',
+        comment
+      });
+    } catch (error) {
+      console.error('Update comment error:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }) as RequestHandler
